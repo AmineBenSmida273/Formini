@@ -268,10 +268,11 @@ const styles = {
     background: '#f97316',
     color: 'white',
     textDecoration: 'none',
-    padding: '10px 20px',
-    borderRadius: '8px',
-    fontWeight: '500',
-    transition: 'background 0.3s',
+    padding: '10px 24px',
+    borderRadius: '10px',
+    fontWeight: '600',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 2px 8px rgba(249, 115, 22, 0.25)',
   },
 
   
@@ -309,11 +310,13 @@ const styles = {
   ctaButton: {
     background: '#1f2937',
     color: 'white',
-    padding: '15px 30px',
-    borderRadius: '8px',
+    padding: '16px 32px',
+    borderRadius: '12px',
     textDecoration: 'none',
-    fontWeight: 'bold',
-    transition: 'all 0.3s ease',
+    fontWeight: '600',
+    fontSize: '1rem',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 4px 12px rgba(31, 41, 55, 0.15)',
   },
   secondaryButton: {
     background: 'transparent',
@@ -388,11 +391,11 @@ const styles = {
   featureCard: {
     background: 'white',
     padding: '40px 30px',
-    borderRadius: '15px',
+    borderRadius: '16px',
     textAlign: 'center',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    transition: 'all 0.3s ease',
-    border: '1px solid #f3f4f6',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    border: '1px solid rgba(249, 115, 22, 0.08)',
   },
   featureIcon: {
     fontSize: '3rem',
@@ -422,11 +425,11 @@ const styles = {
   },
   courseCard: {
     background: 'white',
-    borderRadius: '15px',
+    borderRadius: '16px',
     overflow: 'hidden',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    transition: 'all 0.3s ease',
-    border: '1px solid #f3f4f6',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    border: '1px solid rgba(249, 115, 22, 0.08)',
   },
   courseImage: {
     background: 'linear-gradient(135deg, #f97316, #fb923c)',
@@ -464,12 +467,13 @@ const styles = {
     background: '#f97316',
     color: 'white',
     border: 'none',
-    padding: '12px 24px',
-    borderRadius: '8px',
-    fontWeight: 'bold',
+    padding: '14px 24px',
+    borderRadius: '10px',
+    fontWeight: '600',
     cursor: 'pointer',
     width: '100%',
-    transition: 'background 0.3s',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 2px 8px rgba(249, 115, 22, 0.2)',
   },
 
   // CTA Section
@@ -559,11 +563,14 @@ styleElement.textContent = `
   
   .signup-btn:hover {
     background: #ea580c !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35) !important;
   }
   
   .cta-button:hover, .cta-button-large:hover {
     background: #374151 !important;
     transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(31, 41, 55, 0.25) !important;
   }
   
   .secondary-button:hover {
@@ -571,12 +578,15 @@ styleElement.textContent = `
   }
   
   .feature-card:hover, .course-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(249, 115, 22, 0.15);
+    transform: translateY(-6px);
+    box-shadow: 0 12px 32px rgba(249, 115, 22, 0.18), 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: rgba(249, 115, 22, 0.2);
   }
   
   .course-button:hover {
     background: #ea580c !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35) !important;
   }
   
   .footer-link:hover {

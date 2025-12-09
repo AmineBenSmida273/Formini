@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { authService } from "../services/api";
 import { Link, useNavigate } from "react-router-dom";
 import signinImage from "../assets/images/SignIn.png";
@@ -11,6 +11,25 @@ export default function SignIn() {
     rememberMe: false,
   });
   const [loading, setLoading] = useState(false);
+  const [fbLoading, setFbLoading] = useState(false);
+
+  useEffect(() => {
+    // Charger le SDK Facebook si absent
+    if (window.FB) return;
+    const script = document.createElement("script");
+    script.src = "https://connect.facebook.net/fr_FR/sdk.js";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      window.FB.init({
+        appId: process.env.REACT_APP_FACEBOOK_APP_ID || "YOUR_FB_APP_ID",
+        cookie: true,
+        xfbml: true,
+        version: "v19.0",
+      });
+    };
+    document.body.appendChild(script);
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -25,19 +44,76 @@ export default function SignIn() {
     setLoading(true);
 
     try {
-      await authService.loginWithMFA({
-        email: formData.email,
-        mdp: formData.mdp,
-      });
-      localStorage.setItem('pendingVerificationEmail', formData.email);
-      navigate('/verify-mfa', { state: { email: formData.email, flow: 'login' } });
-      alert("✅ Code MFA envoyé. Vérifiez votre email.");
+      const email = formData.email.toLowerCase().trim();
+      const isAdminEmail = email === 'admin@formini.com';
+
+      // Si c'est l'admin, connexion directe sans MFA
+      if (isAdminEmail) {
+        const response = await authService.login({
+          email: formData.email,
+          mdp: formData.mdp,
+        });
+
+        const { token, user } = response.data;
+        if (token && user) {
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(user));
+          localStorage.removeItem('pendingVerificationEmail');
+          
+          // Rediriger vers le dashboard
+          navigate('/dashboard');
+        } else {
+          alert("❌ Erreur : Réponse inattendue du serveur");
+        }
+      } else {
+        // Pour les autres utilisateurs, utiliser MFA
+        await authService.loginWithMFA({
+          email: formData.email,
+          mdp: formData.mdp,
+        });
+        localStorage.setItem('pendingVerificationEmail', formData.email);
+        navigate('/verify-mfa', { state: { email: formData.email, flow: 'login' } });
+        alert("✅ Code MFA envoyé. Vérifiez votre email.");
+      }
       
     } catch (err) {
       alert("❌ Erreur : " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFacebookLogin = () => {
+    if (!window.FB) {
+      alert("Facebook SDK non chargé");
+      return;
+    }
+    setFbLoading(true);
+    window.FB.login(
+      async (response) => {
+        try {
+          if (response.status !== "connected") {
+            setFbLoading(false);
+            return;
+          }
+          const accessToken = response.authResponse.accessToken;
+          const res = await authService.facebookLogin(accessToken);
+          const { token, user } = res.data;
+          if (token && user) {
+            localStorage.setItem("token", token);
+            localStorage.setItem("user", JSON.stringify(user));
+            navigate("/dashboard");
+          } else {
+            alert("❌ Réponse inattendue du serveur Facebook");
+          }
+        } catch (err) {
+          alert("❌ Erreur Facebook : " + (err.response?.data?.message || err.message));
+        } finally {
+          setFbLoading(false);
+        }
+      },
+      { scope: "email" }
+    );
   };
 
   return (
@@ -119,10 +195,11 @@ export default function SignIn() {
             <div style={styles.socialButtons}>
               <button 
                 style={styles.socialButton}
-                onClick={() => alert("Facebook login - À implémenter")}
+                onClick={handleFacebookLogin}
+                disabled={fbLoading}
               >
                 <span style={styles.socialIcon}>🔵</span>
-                Facebook
+                {fbLoading ? "Connexion..." : "Facebook"}
               </button>
               <button 
                 style={styles.socialButton}
@@ -159,11 +236,11 @@ const styles = {
   page: {
     width: "100%",
     height: "100vh",
-    background: "linear-gradient(120deg, #ef7212bb, #ffffffff, #ef7212bb)",
+    background: "linear-gradient(135deg, #ffdab2ff, #fb923c)",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    fontFamily: "Inter, Arial",
+    fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
   },
 
   card: {
@@ -171,10 +248,11 @@ const styles = {
     height: "95%",
     maxWidth: "1200px",
     background: "#fff",
-    borderRadius: "25px",
-    boxShadow: "20px 20px 20px 20px rgba(0,0,0,0.1)",
+    borderRadius: "24px",
+    boxShadow: "0 20px 60px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)",
     display: "flex",
     overflow: "hidden",
+    border: "1px solid rgba(249, 115, 22, 0.1)",
   },
 
   left: {
@@ -187,7 +265,7 @@ const styles = {
 
   right: {
     width: "55%",
-    background: "#e6e6e6ff",
+    background: "linear-gradient(135deg, #f97316, #fb923c)",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
@@ -200,7 +278,7 @@ const styles = {
   title: {
     fontSize: "36px",
     fontWeight: "bold",
-    color: "#2b2d42",
+    color: "#1f2937",
   },
 
   subtitle: {
@@ -217,11 +295,11 @@ const styles = {
   },
 
   inputGroup: {
-    background: "#f8f9fc",
-    borderRadius: "10px",
-    border: "1px solid #dfe3f0",
-    padding: "12px",
-    transition: "all 0.3s ease",
+    background: "#f8fafc",
+    borderRadius: "12px",
+    border: "1.5px solid #e5e7eb",
+    padding: "14px 16px",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   },
 
   input: {
@@ -245,7 +323,7 @@ const styles = {
   },
 
   forgotLink: {
-    color: "#4f46e5",
+    color: "#f97316",
     textDecoration: "none",
     fontSize: "14px",
     fontWeight: "500",
@@ -253,15 +331,16 @@ const styles = {
 
   button: {
     marginTop: "10px",
-    background: "#4f46e5",
-    padding: "14px",
+    background: "#f97316",
+    padding: "16px 24px",
     color: "white",
     border: "none",
-    borderRadius: "10px",
+    borderRadius: "12px",
     fontSize: "16px",
-    fontWeight: "bold",
+    fontWeight: "600",
     cursor: "pointer",
-    transition: "0.3s",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    boxShadow: "0 4px 12px rgba(249, 115, 22, 0.25)",
   },
 
   buttonLoading: {
@@ -298,14 +377,15 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",
-    padding: "12px",
-    border: "1px solid #dfe3f0",
-    borderRadius: "10px",
+    padding: "14px",
+    border: "1.5px solid #e5e7eb",
+    borderRadius: "12px",
     background: "white",
     cursor: "pointer",
-    transition: "0.3s",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     fontSize: "14px",
     fontWeight: "500",
+    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
   },
 
   socialIcon: {
@@ -313,12 +393,12 @@ const styles = {
   },
 
   link: {
-    color: "#4f46e5",
+    color: "#f97316",
     textDecoration: "none",
   },
 
   link2: {
-    color: "#6d28d9",
+    color: "#f97316",
     fontWeight: "bold",
     textDecoration: "none",
   },
@@ -334,23 +414,38 @@ const styles = {
 const styleElement = document.createElement('style');
 styleElement.textContent = `
   .input-group:hover {
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    border-color: #f97316;
+    box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.08);
+    background: #ffffff;
+  }
+
+  .input-group:focus-within {
+    border-color: #f97316;
+    box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.12);
+    background: #ffffff;
   }
 
   button:hover:not(:disabled) {
-    background: #4338ca;
+    background: #ea580c;
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(79, 70, 229, 0.3);
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.35);
+  }
+
+  button:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.25);
   }
 
   .social-button:hover {
-    border-color: #4f46e5;
-    background: #f8f9fc;
+    border-color: #f97316;
+    background: #fef3f2;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.15);
+    transform: translateY(-1px);
   }
 
   a:hover {
     text-decoration: underline;
+    color: #ea580c;
   }
 `;
 document.head.appendChild(styleElement);

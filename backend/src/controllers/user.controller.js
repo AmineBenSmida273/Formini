@@ -7,6 +7,7 @@ const Review = require('../models/review.model');
 const Enrollment = require('../models/enrollment.model');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { ADMIN_EMAIL, isAdminEmail } = require('../utils/adminConfig');
 
 exports.register = async (req, res) => {
   try {
@@ -38,6 +39,20 @@ exports.register = async (req, res) => {
     if (existingUser) {
       return res.status(400).json({ 
         message: 'Un utilisateur avec cet email existe déjà' 
+      });
+    }
+
+    // Empêcher la création de comptes admin via cette route
+    if (role === 'admin') {
+      return res.status(403).json({ 
+        message: `La création de comptes administrateur n'est pas autorisée. Un seul compte admin existe: ${ADMIN_EMAIL}` 
+      });
+    }
+
+    // Empêcher la création d'un compte avec l'email admin
+    if (isAdminEmail(email)) {
+      return res.status(403).json({ 
+        message: `Cet email est réservé au compte administrateur unique` 
       });
     }
 
@@ -186,6 +201,127 @@ exports.getAdminStats = async (req, res) => {
       .limit(10)
       .lean();
 
+    // Formateurs en attente d'approbation
+    const pendingInstructors = await User.find({
+      role: 'instructor',
+      statutInscription: 'pending'
+    })
+      .select('nom prenom email centreProfession cv dateDemande')
+      .sort({ dateDemande: -1 })
+      .lean();
+
+    // Plage pour les tendances (7 derniers jours)
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 6);
+
+    const buildDateKey = (date) => {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return d.toISOString().slice(0, 10);
+    };
+
+    const getDisplayDate = (date) => {
+      return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    };
+
+    const userTrendAggregation = await User.aggregate([
+      { $match: { dateinscri: { $gte: startDate } } },
+      {
+        $group: {
+          _id: {
+            day: { $dateToString: { format: '%Y-%m-%d', date: '$dateinscri' } },
+            role: '$role'
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $group: {
+          _id: '$_id.day',
+          roles: {
+            $push: {
+              role: '$_id.role',
+              count: '$count'
+            }
+          }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const courseTrendAggregation = await Course.aggregate([
+      { $match: { dateCreation: { $gte: startDate } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$dateCreation' } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const enrollmentTrendAggregation = await Enrollment.aggregate([
+      { $match: { dateInscription: { $gte: startDate } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$dateInscription' } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const courseCategories = await Course.aggregate([
+      { $group: { _id: '$categorie', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    const makeSeries = (days) => {
+      const series = [];
+      const cursor = new Date();
+      cursor.setDate(cursor.getDate() - (days - 1));
+      for (let i = 0; i < days; i++) {
+        series.push(new Date(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return series;
+    };
+
+    const userTrends = makeSeries(7).map((date) => {
+      const key = buildDateKey(date);
+      const dayData = userTrendAggregation.find((d) => d._id === key);
+      const roleCounts = { student: 0, instructor: 0, admin: 0 };
+      if (dayData) {
+        dayData.roles.forEach((r) => {
+          roleCounts[r.role] = r.count;
+        });
+      }
+      return {
+        date: getDisplayDate(date),
+        students: roleCounts.student || 0,
+        instructors: roleCounts.instructor || 0,
+        admins: roleCounts.admin || 0
+      };
+    });
+
+    const courseTrends = makeSeries(7).map((date) => {
+      const key = buildDateKey(date);
+      const dayData = courseTrendAggregation.find((d) => d._id === key);
+      return {
+        date: getDisplayDate(date),
+        courses: dayData ? dayData.count : 0
+      };
+    });
+
+    const enrollmentTrends = makeSeries(7).map((date) => {
+      const key = buildDateKey(date);
+      const dayData = enrollmentTrendAggregation.find((d) => d._id === key);
+      return {
+        date: getDisplayDate(date),
+        enrollments: dayData ? dayData.count : 0
+      };
+    });
+
     res.json({
       stats: {
         totalUsers,
@@ -200,6 +336,20 @@ exports.getAdminStats = async (req, res) => {
         totalEnrollments,
         totalReviews,
         averageRating: Math.round(averageRating * 10) / 10,
+        pendingInstructors: pendingInstructors.length,
+        roleDistribution: [
+          { role: 'student', count: totalStudents },
+          { role: 'instructor', count: totalInstructors },
+          { role: 'admin', count: totalAdmins },
+        ],
+        statusDistribution: [
+          { status: 'active', count: activeUsers },
+          { status: 'suspendue', count: suspendedUsers },
+        ],
+        categoryDistribution: courseCategories.map((c) => ({
+          category: c._id || 'Non classé',
+          count: c.count
+        })),
       },
       recentUsers: recentUsers.map(user => ({
         id: user._id,
@@ -210,6 +360,18 @@ exports.getAdminStats = async (req, res) => {
         statut: user.statut,
         dateinscri: user.dateinscri,
       })),
+      pendingInstructors: pendingInstructors.map(instructor => ({
+        id: instructor._id,
+        nom: instructor.nom,
+        prenom: instructor.prenom,
+        email: instructor.email,
+        centreProfession: instructor.centreProfession,
+        cv: instructor.cv,
+        dateDemande: instructor.dateDemande,
+      })),
+      userTrends,
+      courseTrends,
+      enrollmentTrends
     });
   } catch (error) {
     res.status(500).json({ 
@@ -389,6 +551,58 @@ exports.getStudentStats = async (req, res) => {
       }
     }
 
+    // Timeline d'activité réelle (14 derniers jours)
+    const activityStart = new Date();
+    activityStart.setDate(activityStart.getDate() - 13);
+
+    const toKey = (date) => {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return d.toISOString().slice(0, 10);
+    };
+
+    const toDisplay = (date) => date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+
+    const makeRange = (days) => {
+      const items = [];
+      const cursor = new Date();
+      cursor.setDate(cursor.getDate() - (days - 1));
+      for (let i = 0; i < days; i++) {
+        const d = new Date(cursor);
+        items.push(d);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return items;
+    };
+
+    const activityPerDay = {};
+
+    enrollments.forEach((enrollment) => {
+      if (enrollment.dateInscription < activityStart) return;
+      const key = toKey(enrollment.dateInscription);
+      activityPerDay[key] = (activityPerDay[key] || 0) + 1;
+    });
+
+    quizResults.forEach((quiz) => {
+      if (!quiz.date || quiz.date < activityStart) return;
+      const key = toKey(quiz.date);
+      activityPerDay[key] = (activityPerDay[key] || 0) + 1;
+    });
+
+    const activityTimeline = makeRange(14).map((date) => {
+      const key = toKey(date);
+      return {
+        date: toDisplay(date),
+        actions: activityPerDay[key] || 0
+      };
+    });
+
+    const courseProgressChart = validCourses.map((course) => ({
+      course: course.title,
+      progress: course.progress,
+      status: course.status
+    }));
+
     res.json({
       stats: {
         coursesEnrolled,
@@ -401,7 +615,9 @@ exports.getStudentStats = async (req, res) => {
       myCourses: validCourses,
       recentActivity,
       recommendedCourses: recommendedWithStats,
-      upcomingDeadlines: upcomingDeadlines.slice(0, 5)
+      upcomingDeadlines: upcomingDeadlines.slice(0, 5),
+      activityTimeline,
+      courseProgressChart
     });
   } catch (error) {
     console.error('Erreur getStudentStats:', error);
@@ -421,6 +637,8 @@ exports.getInstructorStats = async (req, res) => {
     const allCourses = await Course.find({ formateur: userId }).lean();
     const totalCourses = allCourses.length;
     const activeCourses = allCourses.length; // Tous les cours sont considérés actifs pour l'instant
+
+    const courseById = new Map(allCourses.map((c) => [c._id.toString(), c]));
 
     // Récupérer toutes les inscriptions pour les cours du formateur
     const courseIds = allCourses.map(c => c._id);
@@ -493,6 +711,65 @@ exports.getInstructorStats = async (req, res) => {
         status: enrollment.statut === 'active' ? 'active' : enrollment.statut
       }));
 
+    // Timeline sur 30 jours
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 29);
+
+    const makeRange = (days) => {
+      const items = [];
+      const cursor = new Date();
+      cursor.setDate(cursor.getDate() - (days - 1));
+      for (let i = 0; i < days; i++) {
+        const d = new Date(cursor);
+        items.push(d);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return items;
+    };
+
+    const toKey = (date) => {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return d.toISOString().slice(0, 10);
+    };
+
+    const toDisplay = (date) => date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+
+    const revenuePerDay = {};
+    const enrollmentPerDay = {};
+
+    enrollments.forEach((enrollment) => {
+      if (enrollment.dateInscription < startDate) return;
+      const key = toKey(enrollment.dateInscription);
+      const course = courseById.get(enrollment.course._id.toString());
+      const price = course?.prix || 0;
+      revenuePerDay[key] = (revenuePerDay[key] || 0) + price;
+      enrollmentPerDay[key] = (enrollmentPerDay[key] || 0) + 1;
+    });
+
+    const revenueTimeline = makeRange(30).map((date) => {
+      const key = toKey(date);
+      return {
+        date: toDisplay(date),
+        revenue: revenuePerDay[key] || 0
+      };
+    });
+
+    const enrollmentTimeline = makeRange(30).map((date) => {
+      const key = toKey(date);
+      return {
+        date: toDisplay(date),
+        enrollments: enrollmentPerDay[key] || 0
+      };
+    });
+
+    const engagementByCourse = myCourses.map((course) => ({
+      courseId: course.id,
+      title: course.title,
+      students: course.students,
+      completionRate: course.completionRate
+      }));
+
     res.json({
       stats: {
         totalCourses,
@@ -503,7 +780,10 @@ exports.getInstructorStats = async (req, res) => {
         totalEnrollments
       },
       myCourses,
-      recentEnrollments
+      recentEnrollments,
+      revenueTimeline,
+      enrollmentTimeline,
+      engagementByCourse
     });
   } catch (error) {
     console.error('Erreur getInstructorStats:', error);

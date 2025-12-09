@@ -40,7 +40,7 @@ api.interceptors.response.use(
 export const authService = {
   // Anciennes routes (à garder pour compatibilité)
   register: (userData) => api.post('/users/register', userData),
-  login: (credentials) => api.post('/users/login', credentials),
+  login: (credentials) => api.post('/auth/login', credentials), // Route pour admin sans MFA
   
   // NOUVELLES ROUTES MFA
   registerWithMFA: (userData) => {
@@ -57,6 +57,7 @@ export const authService = {
   verifyMFA: (data) => api.post('/auth/verify-mfa', data),
   resendVerificationCode: (data) => api.post('/auth/resend-verification', data),
   loginWithMFA: (credentials) => api.post('/auth/login-mfa', credentials),
+  facebookLogin: (accessToken) => api.post('/auth/facebook-login', { accessToken }),
   
   // Fonction utilitaire pour vérifier si l'utilisateur est connecté
   checkAuth: () => {
@@ -97,6 +98,15 @@ export const dashboardService = {
   getAdminStats: () => api.get('/users/dashboard/admin'),
   getStudentStats: () => api.get('/users/dashboard/student'),
   getInstructorStats: () => api.get('/users/dashboard/instructor'),
+};
+
+// Service admin
+export const adminService = {
+  getPendingInstructors: () => api.get('/users/admin/pending-instructors'),
+  approveInstructor: (instructorId) => api.post(`/users/admin/approve-instructor/${instructorId}`),
+  rejectInstructor: (instructorId) => api.post(`/users/admin/reject-instructor/${instructorId}`),
+  downloadCV: (instructorId) => api.get(`/users/admin/instructor/${instructorId}/cv`, { responseType: 'blob' }),
+  toggleUserStatus: (userId, statut) => api.put(`/users/admin/user/${userId}/status`, { statut }),
 };
 
 export default api;

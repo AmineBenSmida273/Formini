@@ -22,5 +22,6 @@ router.get('/admin/pending-instructors', verifyToken, verifyRole('admin'), admin
 router.post('/admin/approve-instructor/:instructorId', verifyToken, verifyRole('admin'), adminController.approveInstructor);
 router.post('/admin/reject-instructor/:instructorId', verifyToken, verifyRole('admin'), adminController.rejectInstructor);
 router.get('/admin/instructor/:instructorId/cv', verifyToken, verifyRole('admin'), adminController.downloadCV);
+router.put('/admin/user/:userId/status', verifyToken, verifyRole('admin'), adminController.toggleUserStatus);
 
 module.exports = router;

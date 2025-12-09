@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const crypto = require('crypto');
+const { Readable } = require('stream');
 
 // Créer le dossier uploads s'il n'existe pas
 const uploadsDir = path.join(__dirname, '../uploads/cvs');
@@ -8,81 +8,108 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Middleware simple pour parser multipart/form-data manuellement
-const parseMultipart = (req, res, next) => {
-  // Si ce n'est pas une requête multipart, passer au suivant
+// Parser multipart/form-data simple sans dépendance externe
+function parseMultipart(req, res, next) {
   const contentType = req.headers['content-type'] || '';
+  
   if (!contentType.includes('multipart/form-data')) {
     return next();
   }
 
-  // Pour l'instant, on va utiliser une approche différente
-  // On va laisser Express gérer le body et utiliser formidable si disponible
-  // Sinon, on va créer une solution simple
-  
-  // Solution temporaire : on va utiliser busboy si disponible, sinon on va utiliser une approche différente
-  try {
-    // Essayer d'utiliser formidable (plus fiable que multer)
-    const formidable = require('formidable');
-    
-    const form = formidable({
-      uploadDir: uploadsDir,
-      keepExtensions: true,
-      maxFileSize: 5 * 1024 * 1024, // 5MB
-      multiples: false
-    });
+  const boundary = contentType.split('boundary=')[1];
+  if (!boundary) {
+    return res.status(400).json({ message: 'Boundary manquant dans Content-Type' });
+  }
 
-    form.parse(req, (err, fields, files) => {
-      if (err) {
-        return res.status(400).json({ 
-          message: 'Erreur lors de l\'upload',
-          error: err.message 
-        });
-      }
+  let body = '';
+  const chunks = [];
 
-      // Convertir fields en objet normal
+  req.on('data', (chunk) => {
+    chunks.push(chunk);
+  });
+
+  req.on('end', () => {
+    try {
+      const buffer = Buffer.concat(chunks);
+      const parts = buffer.toString('binary').split('--' + boundary);
+
       req.body = {};
-      for (const [key, value] of Object.entries(fields)) {
-        req.body[key] = Array.isArray(value) ? value[0] : value;
-      }
+      let cvFile = null;
 
-      // Gérer le fichier CV
-      if (files.cv) {
-        const file = Array.isArray(files.cv) ? files.cv[0] : files.cv;
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (!part || part.trim() === '' || part.trim() === '--') continue;
+
+        const headerEnd = part.indexOf('\r\n\r\n');
+        if (headerEnd === -1) continue;
+
+        const headers = part.substring(0, headerEnd);
+        const content = part.substring(headerEnd + 4);
+
+        // Extraire le nom du champ
+        const nameMatch = headers.match(/name="([^"]+)"/);
+        if (!nameMatch) continue;
+
+        const fieldName = nameMatch[1];
+
+        // Vérifier si c'est un fichier
+        const filenameMatch = headers.match(/filename="([^"]+)"/);
         
-        // Vérifier que c'est un PDF
-        if (file.mimetype !== 'application/pdf' && !file.originalFilename.endsWith('.pdf')) {
-          // Supprimer le fichier uploadé
-          fs.unlinkSync(file.filepath);
-          return res.status(400).json({ 
-            message: 'Seuls les fichiers PDF sont autorisés' 
-          });
+        if (filenameMatch && fieldName === 'cv') {
+          // C'est le fichier CV
+          const filename = filenameMatch[1];
+          
+          // Vérifier l'extension
+          if (!filename.toLowerCase().endsWith('.pdf')) {
+            return res.status(400).json({ 
+              message: 'Seuls les fichiers PDF sont autorisés' 
+            });
+          }
+
+          // Extraire le contenu du fichier (enlever les \r\n de fin)
+          const fileContent = content.replace(/\r\n$/, '');
+          const fileBuffer = Buffer.from(fileContent, 'binary');
+
+          // Vérifier la taille (5MB max)
+          if (fileBuffer.length > 5 * 1024 * 1024) {
+            return res.status(400).json({ 
+              message: 'Le fichier est trop volumineux (max 5MB)' 
+            });
+          }
+
+          // Générer un nom de fichier unique
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const email = req.body.email ? req.body.email.split('@')[0] : 'user';
+          const newFileName = `${email}-${uniqueSuffix}.pdf`;
+          const newFilePath = path.join(uploadsDir, newFileName);
+
+          // Sauvegarder le fichier
+          fs.writeFileSync(newFilePath, fileBuffer);
+          req.uploadedCV = `/uploads/cvs/${newFileName}`;
+        } else {
+          // C'est un champ texte normal
+          const fieldValue = content.replace(/\r\n$/, '').trim();
+          req.body[fieldName] = fieldValue;
         }
-
-        // Renommer le fichier avec un nom unique
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const email = req.body.email ? req.body.email.split('@')[0] : 'user';
-        const newFileName = `${email}-${uniqueSuffix}.pdf`;
-        const newFilePath = path.join(uploadsDir, newFileName);
-
-        fs.renameSync(file.filepath, newFilePath);
-        req.uploadedCV = `/uploads/cvs/${newFileName}`;
       }
 
       next();
+    } catch (error) {
+      console.error('Erreur parsing multipart:', error);
+      return res.status(500).json({ 
+        message: 'Erreur lors du traitement de la requête',
+        error: error.message 
+      });
+    }
+  });
+
+  req.on('error', (error) => {
+    return res.status(500).json({ 
+      message: 'Erreur lors de la réception des données',
+      error: error.message 
     });
-  } catch (error) {
-    // Si formidable n'est pas disponible, utiliser une solution de base
-    console.log('Formidable non disponible, utilisation de la solution de base');
-    
-    // Solution de base : accepter les données mais ne pas traiter le fichier pour l'instant
-    // L'utilisateur devra installer formidable ou multer manuellement
-    return res.status(500).json({
-      message: 'Module d\'upload non disponible. Veuillez installer formidable: npm install formidable',
-      error: 'MODULE_NOT_FOUND'
-    });
-  }
-};
+  });
+}
 
 module.exports = {
   uploadMiddleware: parseMultipart,

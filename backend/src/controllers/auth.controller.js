@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { sendVerificationCode, sendInstructorApprovalRequest, sendInstructorApprovalNotification } = require('../services/emailService');
+const { ADMIN_EMAIL, isAdminEmail, isMainAdminUser } = require('../utils/adminConfig');
 const path = require('path');
 
 const { verifyGoogleToken } = require("../utils/google");
@@ -37,10 +38,17 @@ const registerWithMFA = async (req, res) => {
     const { nom, prenom, email, mdp, role, centreProfession } = req.body;
     const cvPath = req.uploadedCV; // Chemin du fichier CV uploadé
 
-    // Vérifier que le rôle n'est pas admin (restriction)
+    // Vérifier que le rôle n'est pas admin (restriction absolue)
     if (role === 'admin') {
       return res.status(403).json({ 
-        message: 'La création de comptes administrateur n\'est pas autorisée via l\'inscription publique' 
+        message: `La création de comptes administrateur n'est pas autorisée. Un seul compte admin existe: ${ADMIN_EMAIL}` 
+      });
+    }
+
+    // Empêcher la création d'un compte avec l'email admin
+    if (isAdminEmail(email)) {
+      return res.status(403).json({ 
+        message: `Cet email est réservé au compte administrateur unique` 
       });
     }
 
@@ -159,6 +167,28 @@ const verifyMFA = async (req, res) => {
       return res.status(400).json({ message: 'Code invalide ou expiré' });
     }
 
+    // Vérifier si c'est l'admin principal - toujours autorisé
+    const isMainAdmin = isMainAdminUser(user);
+
+    // Vérifier le statut (sauf pour l'admin principal)
+    if (user.statut !== 'active' && !isMainAdmin) {
+      return res.status(403).json({ message: 'Votre compte est suspendu' });
+    }
+
+    // Vérifier si formateur en attente d'approbation
+    if (user.role === 'instructor' && user.statutInscription === 'pending') {
+      return res.status(403).json({ 
+        message: 'Votre demande d\'inscription est en attente d\'approbation par l\'administrateur' 
+      });
+    }
+
+    // Vérifier si formateur rejeté
+    if (user.role === 'instructor' && user.statutInscription === 'rejected') {
+      return res.status(403).json({ 
+        message: 'Votre demande d\'inscription a été rejetée. Veuillez contacter l\'administrateur.' 
+      });
+    }
+
     user.isVerified = true;
     user.verificationCode = undefined;
     user.verificationCodeExpires = undefined;
@@ -170,6 +200,8 @@ const verifyMFA = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    console.log('✅ MFA vérifié pour:', user.email, 'Rôle:', user.role);
 
     res.json({
       message: 'Compte vérifié',
@@ -226,6 +258,20 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'Email déjà utilisé' });
     }
 
+    // Empêcher la création de comptes admin
+    if (role === 'admin') {
+      return res.status(403).json({ 
+        message: `La création de comptes administrateur n'est pas autorisée. Un seul compte admin existe: ${ADMIN_EMAIL}` 
+      });
+    }
+
+    // Empêcher la création d'un compte avec l'email admin
+    if (isAdminEmail(email)) {
+      return res.status(403).json({ 
+        message: `Cet email est réservé au compte administrateur unique` 
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(mdp, 12);
 
     const user = await User.create({
@@ -271,8 +317,17 @@ const login = async (req, res) => {
     const ok = await bcrypt.compare(mdp, user.mdp);
     if (!ok) return res.status(400).json({ message: 'Email ou mot de passe incorrect' });
 
-    if (!user.isVerified)
+    // Vérifier si c'est l'admin principal - toujours autorisé
+    const isMainAdmin = isMainAdminUser(user);
+
+    if (!user.isVerified && !isMainAdmin) {
       return res.status(400).json({ message: 'Veuillez vérifier votre email.' });
+    }
+
+    // L'admin principal peut toujours se connecter même si suspendu
+    if (user.statut !== 'active' && !isMainAdmin) {
+      return res.status(403).json({ message: 'Votre compte est suspendu' });
+    }
 
     // Vérifier si formateur en attente d'approbation
     if (user.role === 'instructor' && user.statutInscription === 'pending') {
@@ -293,6 +348,8 @@ const login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    console.log('✅ Connexion réussie pour:', user.email, 'Rôle:', user.role);
 
     res.json({
       message: 'Connexion réussie',
@@ -318,8 +375,30 @@ const loginWithMFA = async (req, res) => {
     const ok = await bcrypt.compare(mdp, user.mdp);
     if (!ok) return res.status(400).json({ message: 'Email ou mot de passe incorrect' });
 
-    if (!user.isVerified) {
+    // Vérifier si c'est l'admin principal - toujours autorisé
+    const isMainAdmin = isMainAdminUser(user);
+
+    if (!user.isVerified && !isMainAdmin) {
       return res.status(400).json({ message: 'Votre compte n\'est pas encore vérifié.' });
+    }
+
+    // L'admin principal peut toujours se connecter même si suspendu
+    if (user.statut !== 'active' && !isMainAdmin) {
+      return res.status(403).json({ message: 'Votre compte est suspendu' });
+    }
+
+    // Vérifier si formateur en attente d'approbation
+    if (user.role === 'instructor' && user.statutInscription === 'pending') {
+      return res.status(403).json({ 
+        message: 'Votre demande d\'inscription est en attente d\'approbation par l\'administrateur' 
+      });
+    }
+
+    // Vérifier si formateur rejeté
+    if (user.role === 'instructor' && user.statutInscription === 'rejected') {
+      return res.status(403).json({ 
+        message: 'Votre demande d\'inscription a été rejetée. Veuillez contacter l\'administrateur.' 
+      });
     }
 
     const verificationCode = generateVerificationCode();
@@ -334,6 +413,8 @@ const loginWithMFA = async (req, res) => {
     } catch (err) {
       emailSent = false;
     }
+
+    console.log('📧 Code MFA envoyé pour:', user.email, 'Rôle:', user.role);
 
     res.json({
       message: emailSent
@@ -474,6 +555,77 @@ const googleLogin = async (req, res) => {
 };
 
 
+const facebookLogin = async (req, res) => {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) {
+      return res.status(400).json({ message: "accessToken manquant" });
+    }
+
+    const appId = process.env.FACEBOOK_APP_ID;
+    const appSecret = process.env.FACEBOOK_APP_SECRET;
+    if (!appId || !appSecret) {
+      return res.status(500).json({ message: "Configuration Facebook manquante (FACEBOOK_APP_ID / FACEBOOK_APP_SECRET)" });
+    }
+
+    const profileRes = await axios.get('https://graph.facebook.com/me', {
+      params: {
+        fields: 'id,name,email,picture',
+        access_token: accessToken,
+      },
+    });
+
+    const profile = profileRes.data;
+    if (!profile || !profile.email) {
+      return res.status(400).json({ message: "Impossible de récupérer l'email Facebook (permission email requise)" });
+    }
+
+    const [prenom = '', ...rest] = (profile.name || '').split(' ');
+    const nom = rest.join(' ').trim() || null;
+
+    let user = await User.findOne({ $or: [{ email: profile.email.toLowerCase() }, { facebookId: profile.id }] });
+
+    if (!user) {
+      user = await User.create({
+        facebookId: profile.id,
+        email: profile.email.toLowerCase(),
+        prenom: prenom || null,
+        nom: nom || null,
+        pdp: profile.picture?.data?.url || null,
+        isVerified: true,
+        mfaEnabled: false,
+        mdp: null,
+        role: 'student',
+        statut: 'active',
+        dateinscri: new Date(),
+      });
+    } else {
+      if (!user.facebookId) {
+        user.facebookId = profile.id;
+        await user.save();
+      }
+      if (user.statut !== 'active') {
+        return res.status(403).json({ message: 'Votre compte est suspendu' });
+      }
+    }
+
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      message: 'Connexion Facebook réussie',
+      token,
+      user: formatUser(user),
+    });
+  } catch (error) {
+    console.error('Facebook login error:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Erreur Facebook Login', error: error.message });
+  }
+};
+
 const completeProfile = async (req, res) => {
   try {
     const { userId, nom, prenom } = req.body;
@@ -507,6 +659,7 @@ module.exports = {
   login,
   loginWithMFA,
   googleLogin,
+  facebookLogin,
   googleAuthRedirect,
   googleAuthCallback,
   completeProfile,

@@ -45,6 +45,13 @@ const userSchema = new mongoose.Schema({
     default: null
   },
 
+  facebookId: {
+    type: String,
+    unique: true,
+    sparse: true,
+    default: null
+  },
+
   role: {
     type: String,
     enum: ['student', 'instructor', 'admin'],
@@ -69,8 +76,9 @@ const userSchema = new mongoose.Schema({
   centreProfession: { type: String, default: null }, // Centre de profession
   statutInscription: { 
     type: String, 
-    enum: ['pending', 'approved', 'rejected'], 
-    default: null 
+    enum: ['pending', 'approved', 'rejected'],
+    required: false, // Optionnel - seulement pour les formateurs
+    // Pas de default - le champ ne sera pas défini si ce n'est pas un formateur
   }, // Pour les formateurs: en attente, approuvé, rejeté
   dateDemande: { type: Date, default: null }, // Date de demande d'inscription pour formateur
 

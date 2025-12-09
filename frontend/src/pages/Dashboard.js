@@ -22,6 +22,15 @@ export default function Dashboard() {
           return;
         }
 
+        // Vérifier que le rôle est présent
+        if (!userData.role) {
+          console.error('Rôle manquant dans les données utilisateur:', userData);
+          setError('Données utilisateur incomplètes. Veuillez vous reconnecter.');
+          setTimeout(() => navigate('/login'), 2000);
+          return;
+        }
+
+        console.log('Utilisateur chargé:', userData.role, userData.email);
         setUser(userData);
         setError(null);
         setLoading(false);
@@ -57,18 +66,26 @@ export default function Dashboard() {
   }
 
   // Rediriger vers le dashboard approprié selon le rôle
+  console.log('Rôle de l\'utilisateur:', user?.role);
+  
   if (user?.role === 'admin') {
+    console.log('Affichage du dashboard admin');
     return <AdminDashboard user={user} />;
   } else if (user?.role === 'instructor') {
+    console.log('Affichage du dashboard formateur');
     return <InstructorDashboard user={user} />;
   } else if (user?.role === 'student') {
+    console.log('Affichage du dashboard étudiant');
     return <StudentDashboard user={user} />;
   }
 
   return (
     <div style={styles.error}>
       <h2>Rôle non reconnu</h2>
-      <p>Votre rôle ({user?.role}) n'est pas reconnu par le système.</p>
+      <p>Votre rôle ({user?.role || 'non défini'}) n'est pas reconnu par le système.</p>
+      <p style={{ fontSize: '14px', marginTop: '10px' }}>
+        Email: {user?.email || 'non défini'}
+      </p>
       <button onClick={() => navigate('/login')} style={styles.button}>
         Retour à la connexion
       </button>
@@ -83,8 +100,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     height: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
+    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
+    color: '#1f2937',
   },
   spinner: {
     border: '4px solid rgba(255, 255, 255, 0.3)',
@@ -101,14 +118,14 @@ const styles = {
     justifyContent: 'center',
     height: '100vh',
     padding: '20px',
-    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-    color: 'white',
+    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
+    color: '#1f2937',
     textAlign: 'center',
   },
   button: {
     padding: '12px 24px',
-    background: 'white',
-    color: '#ef4444',
+    background: '#f97316',
+    color: 'white',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',

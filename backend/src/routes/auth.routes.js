@@ -37,6 +37,9 @@ router.post('/login-mfa', authController.loginWithMFA);
 // Login Google (idToken envoyé par le frontend)
 router.post('/google-login', authController.googleLogin);
 
+// Login Facebook (accessToken envoyé par le frontend)
+router.post('/facebook-login', authController.facebookLogin);
+
 // Démarrer OAuth Google côté serveur
 router.get('/google', authController.googleAuthRedirect);
 

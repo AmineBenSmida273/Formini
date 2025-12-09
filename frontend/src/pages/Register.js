@@ -307,11 +307,11 @@ const styles = {
   page: {
     width: "100%",
     height: "100vh",
-    background: "linear-gradient(120deg, #ef7212bb, #ffffffff, #ef7212bb)",
+    background: "linear-gradient(135deg, #ffdab2ff, #fb923c)",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    fontFamily: "Inter, Arial",
+    fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
   },
 
   card: {
@@ -320,10 +320,11 @@ const styles = {
     maxWidth: "1200px",
     maxHeight: "95vh",
     background: "#fff",
-    borderRadius: "25px",
-    boxShadow: "20px 20px 20px 20px rgba(0,0,0,0.1)",
+    borderRadius: "24px",
+    boxShadow: "0 20px 60px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)",
     display: "flex",
     overflow: "hidden",
+    border: "1px solid rgba(249, 115, 22, 0.1)",
   },
 
   left: {
@@ -338,7 +339,7 @@ const styles = {
 
   right: {
     width: "55%",
-    background: "#e6e6e6ff",
+    background: "linear-gradient(135deg, #f97316, #fb923c)",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
@@ -351,7 +352,7 @@ const styles = {
   title: {
     fontSize: "32px",
     fontWeight: "bold",
-    color: "#2b2d42",
+    color: "#1f2937",
     marginBottom: "5px",
   },
 
@@ -375,17 +376,19 @@ const styles = {
 
   inputGroupHalf: {
     flex: 1,
-    background: "#f8f9fc",
-    borderRadius: "10px",
-    border: "1px solid #dfe3f0",
-    padding: "12px",
+    background: "#f8fafc",
+    borderRadius: "12px",
+    border: "1.5px solid #e5e7eb",
+    padding: "14px 16px",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   },
 
   inputGroup: {
-    background: "#f8f9fc",
-    borderRadius: "10px",
-    border: "1px solid #dfe3f0",
-    padding: "12px",
+    background: "#f8fafc",
+    borderRadius: "12px",
+    border: "1.5px solid #e5e7eb",
+    padding: "14px 16px",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   },
 
   input: {
@@ -403,7 +406,7 @@ const styles = {
   button: {
     marginTop: "15px",
     marginBottom: "10px",
-    background: "#4f46e5",
+    background: "#f97316",
     padding: "14px",
     color: "white",
     border: "none",
@@ -421,12 +424,12 @@ const styles = {
   },
 
   link: {
-    color: "#4f46e5",
+    color: "#f97316",
     textDecoration: "none",
   },
 
   link2: {
-    color: "#6d28d9",
+    color: "#f97316",
     fontWeight: "bold",
     textDecoration: "none",
   },
@@ -452,11 +455,13 @@ const styles = {
   fileInput: {
     marginTop: "8px",
     width: "100%",
-    padding: "8px",
-    border: "1px solid #dfe3f0",
-    borderRadius: "8px",
+    padding: "10px 12px",
+    border: "1.5px solid #e5e7eb",
+    borderRadius: "10px",
     fontSize: "14px",
     cursor: "pointer",
+    background: "#ffffff",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   },
   fileInfo: {
     marginTop: "8px",

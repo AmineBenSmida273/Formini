@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService, dashboardService } from '../../services/api';
+import { authService, dashboardService, adminService } from '../../services/api';
 
 export default function AdminDashboard({ user }) {
   const navigate = useNavigate();
@@ -15,6 +15,7 @@ export default function AdminDashboard({ user }) {
   const [recentUsers, setRecentUsers] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
+  const [pendingInstructors, setPendingInstructors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,6 +24,10 @@ export default function AdminDashboard({ user }) {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [userTrends, setUserTrends] = useState([]);
+  const [courseTrends, setCourseTrends] = useState([]);
+  const [enrollmentTrends, setEnrollmentTrends] = useState([]);
+  const [roleDistribution, setRoleDistribution] = useState([]);
+  const [categoryDistribution, setCategoryDistribution] = useState([]);
   const refreshIntervalRef = useRef(null);
 
   useEffect(() => {
@@ -64,34 +69,20 @@ export default function AdminDashboard({ user }) {
       
       setRecentUsers(data.recentUsers || []);
       setAllUsers(data.recentUsers || []);
+      setPendingInstructors(data.pendingInstructors || []);
+      setUserTrends(data.userTrends || []);
+      setCourseTrends(data.courseTrends || []);
+      setEnrollmentTrends(data.enrollmentTrends || []);
+      setRoleDistribution(data.stats?.roleDistribution || []);
+      setCategoryDistribution(data.stats?.categoryDistribution || []);
       setLastUpdate(new Date());
-      
-      // Générer des tendances simulées pour le graphique
-      generateUserTrends(data.stats);
-      
+
       setLoading(false);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
       setError('Impossible de charger les données du dashboard');
       setLoading(false);
     }
-  };
-
-  const generateUserTrends = (currentStats) => {
-    // Générer des données de tendance pour les 7 derniers jours
-    const trends = [];
-    const today = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      trends.push({
-        date: date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
-        students: Math.max(0, currentStats.totalStudents - Math.floor(Math.random() * 5)),
-        instructors: Math.max(0, currentStats.totalInstructors - Math.floor(Math.random() * 2)),
-        admins: currentStats.totalAdmins,
-      });
-    }
-    setUserTrends(trends);
   };
 
   const filterUsers = () => {
@@ -122,11 +113,54 @@ export default function AdminDashboard({ user }) {
 
   const toggleUserStatus = async (userId, currentStatus) => {
     try {
-      // TODO: Implémenter l'API pour changer le statut
-      alert(`Changement de statut pour l'utilisateur ${userId} - À implémenter`);
+      const newStatus = currentStatus === 'active' ? 'suspendue' : 'active';
+      await adminService.toggleUserStatus(userId, newStatus);
+      alert(`✅ Utilisateur ${newStatus === 'active' ? 'activé' : 'suspendu'} avec succès`);
       fetchDashboardData();
     } catch (error) {
       console.error('Erreur lors du changement de statut:', error);
+      alert('❌ Erreur: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleApproveInstructor = async (instructorId) => {
+    try {
+      await adminService.approveInstructor(instructorId);
+      alert('✅ Formateur approuvé avec succès');
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Erreur lors de l\'approbation:', error);
+      alert('❌ Erreur: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleRejectInstructor = async (instructorId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir rejeter ce formateur ?')) {
+      return;
+    }
+    try {
+      await adminService.rejectInstructor(instructorId);
+      alert('✅ Formateur rejeté');
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Erreur lors du rejet:', error);
+      alert('❌ Erreur: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleDownloadCV = async (instructorId, instructorName) => {
+    try {
+      const response = await adminService.downloadCV(instructorId);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${instructorName}_CV.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Erreur lors du téléchargement:', error);
+      alert('❌ Erreur lors du téléchargement du CV');
     }
   };
 
@@ -134,10 +168,11 @@ export default function AdminDashboard({ user }) {
     return total > 0 ? ((roleCount / total) * 100).toFixed(1) : 0;
   };
 
-  const getMaxTrendValue = () => {
-    if (userTrends.length === 0) return 100;
+  const getMaxValue = (trends, keys) => {
+    if (!trends || trends.length === 0) return 1;
     return Math.max(
-      ...userTrends.map(t => Math.max(t.students, t.instructors, t.admins))
+      ...trends.map(t => Math.max(...keys.map(k => t[k] || 0))),
+      1
     );
   };
 
@@ -164,7 +199,9 @@ export default function AdminDashboard({ user }) {
     );
   }
 
-  const maxTrendValue = getMaxTrendValue();
+  const maxUserTrendValue = getMaxValue(userTrends, ['students', 'instructors', 'admins']);
+  const maxEnrollmentValue = getMaxValue(enrollmentTrends, ['enrollments']);
+  const maxCourseTrendValue = getMaxValue(courseTrends, ['courses']);
 
   return (
     <div style={styles.container}>
@@ -211,7 +248,7 @@ export default function AdminDashboard({ user }) {
                 <h3 style={styles.statValue}>{stats.totalUsers}</h3>
                 <p style={styles.statLabel}>Total Utilisateurs</p>
                 <div style={styles.statProgress}>
-                  <div style={{...styles.statProgressBar, width: '100%', background: '#3b82f6'}}></div>
+                  <div style={{...styles.statProgressBar, width: '100%', background: '#f97316'}}></div>
                 </div>
               </div>
             </div>
@@ -290,61 +327,227 @@ export default function AdminDashboard({ user }) {
                 </div>
               </div>
             </div>
+
+            {stats.pendingInstructors !== undefined && stats.pendingInstructors > 0 && (
+              <div style={styles.statCard}>
+                <div style={styles.statIcon}>⏳</div>
+                <div style={styles.statContent}>
+                  <h3 style={styles.statValue}>{stats.pendingInstructors}</h3>
+                  <p style={styles.statLabel}>Formateurs en Attente</p>
+                  <div style={styles.statProgress}>
+                    <div style={{
+                      ...styles.statProgressBar, 
+                      width: `${(stats.pendingInstructors / Math.max(stats.totalInstructors, 1)) * 100}%`, 
+                      background: '#f59e0b'
+                    }}></div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
-        {/* Graphique de tendances */}
-        {userTrends.length > 0 && (
+        {/* Graphiques de tendances réelles */}
+        {(userTrends.length > 0 || enrollmentTrends.length > 0 || courseTrends.length > 0) && (
           <section style={styles.chartSection}>
-            <h2 style={styles.sectionTitle}>📊 Évolution des Utilisateurs (7 derniers jours)</h2>
-            <div style={styles.chartContainer}>
-              <div style={styles.chart}>
-                {userTrends.map((trend, index) => (
-                  <div key={index} style={styles.chartBar}>
-                    <div style={styles.chartBars}>
-                      <div 
-                        style={{
-                          ...styles.chartBarItem,
-                          height: `${(trend.students / maxTrendValue) * 100}%`,
-                          background: '#10b981',
-                          title: `${trend.students} étudiants`
-                        }}
-                      ></div>
-                      <div 
-                        style={{
-                          ...styles.chartBarItem,
-                          height: `${(trend.instructors / maxTrendValue) * 100}%`,
-                          background: '#f59e0b',
-                          title: `${trend.instructors} formateurs`
-                        }}
-                      ></div>
-                      <div 
-                        style={{
-                          ...styles.chartBarItem,
-                          height: `${(trend.admins / maxTrendValue) * 100}%`,
-                          background: '#ef4444',
-                          title: `${trend.admins} admins`
-                        }}
-                      ></div>
+            <h2 style={styles.sectionTitle}>📊 Tendances réelles (7 derniers jours)</h2>
+            <div style={styles.chartGrid}>
+              {userTrends.length > 0 && (
+                <div style={styles.chartCard}>
+                  <h3 style={styles.chartCardTitle}>Évolution des utilisateurs</h3>
+                  <div style={styles.chartContainer}>
+                    <div style={styles.chart}>
+                      {userTrends.map((trend, index) => (
+                        <div key={index} style={styles.chartBar}>
+                          <div style={styles.chartBars}>
+                            <div 
+                              style={{
+                                ...styles.chartBarItem,
+                                height: `${(trend.students / maxUserTrendValue) * 100}%`,
+                                background: '#10b981',
+                                title: `${trend.students} étudiants`
+                              }}
+                            ></div>
+                            <div 
+                              style={{
+                                ...styles.chartBarItem,
+                                height: `${(trend.instructors / maxUserTrendValue) * 100}%`,
+                                background: '#f59e0b',
+                                title: `${trend.instructors} formateurs`
+                              }}
+                            ></div>
+                            <div 
+                              style={{
+                                ...styles.chartBarItem,
+                                height: `${(trend.admins / maxUserTrendValue) * 100}%`,
+                                background: '#ef4444',
+                                title: `${trend.admins} admins`
+                              }}
+                            ></div>
+                          </div>
+                          <span style={styles.chartLabel}>{trend.date}</span>
+                        </div>
+                      ))}
                     </div>
-                    <span style={styles.chartLabel}>{trend.date}</span>
+                    <div style={styles.chartLegend}>
+                      <div style={styles.legendItem}>
+                        <div style={{...styles.legendColor, background: '#10b981'}}></div>
+                        <span>Étudiants</span>
+                      </div>
+                      <div style={styles.legendItem}>
+                        <div style={{...styles.legendColor, background: '#f59e0b'}}></div>
+                        <span>Formateurs</span>
+                      </div>
+                      <div style={styles.legendItem}>
+                        <div style={{...styles.legendColor, background: '#ef4444'}}></div>
+                        <span>Admins</span>
+                      </div>
+                    </div>
                   </div>
-                ))}
-              </div>
-              <div style={styles.chartLegend}>
-                <div style={styles.legendItem}>
-                  <div style={{...styles.legendColor, background: '#10b981'}}></div>
-                  <span>Étudiants</span>
                 </div>
-                <div style={styles.legendItem}>
-                  <div style={{...styles.legendColor, background: '#f59e0b'}}></div>
-                  <span>Formateurs</span>
+              )}
+
+              {enrollmentTrends.length > 0 && (
+                <div style={styles.chartCard}>
+                  <h3 style={styles.chartCardTitle}>Inscriptions aux cours</h3>
+                  <div style={styles.chartContainer}>
+                    <div style={styles.chart}>
+                      {enrollmentTrends.map((trend, index) => (
+                        <div key={index} style={styles.chartBar}>
+                          <div 
+                            style={{
+                              ...styles.chartBarItem,
+                              height: `${(trend.enrollments / maxEnrollmentValue) * 100}%`,
+                              background: '#3b82f6',
+                              title: `${trend.enrollments} inscriptions`
+                            }}
+                          ></div>
+                          <span style={styles.chartLabel}>{trend.date}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div style={styles.legendItem}>
-                  <div style={{...styles.legendColor, background: '#ef4444'}}></div>
-                  <span>Admins</span>
+              )}
+            </div>
+
+            <div style={styles.chartGrid}>
+              {courseTrends.length > 0 && (
+                <div style={styles.chartCard}>
+                  <h3 style={styles.chartCardTitle}>Nouveaux cours publiés</h3>
+                  <div style={styles.chartContainer}>
+                    <div style={styles.chart}>
+                      {courseTrends.map((trend, index) => (
+                        <div key={index} style={styles.chartBar}>
+                          <div 
+                            style={{
+                              ...styles.chartBarItem,
+                              height: `${(trend.courses / maxCourseTrendValue) * 100}%`,
+                              background: '#f97316',
+                              title: `${trend.courses} cours`
+                            }}
+                          ></div>
+                          <span style={styles.chartLabel}>{trend.date}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {roleDistribution.length > 0 && (
+                <div style={styles.chartCard}>
+                  <h3 style={styles.chartCardTitle}>Répartition des rôles</h3>
+                  <div style={styles.miniList}>
+                    {roleDistribution.map((role) => (
+                      <div key={role.role} style={styles.miniRow}>
+                        <div style={styles.miniLabel}>{role.role}</div>
+                        <div style={styles.miniValue}>{role.count}</div>
+                        <div style={styles.miniBar}>
+                          <div 
+                            style={{
+                              ...styles.miniFill,
+                              width: `${getRolePercentage(role.count, stats.totalUsers)}%`,
+                              background: role.role === 'admin' ? '#ef4444' : role.role === 'instructor' ? '#f59e0b' : '#10b981'
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {categoryDistribution.length > 0 && (
+                <div style={styles.chartCard}>
+                  <h3 style={styles.chartCardTitle}>Cours par catégorie</h3>
+                  <div style={styles.miniList}>
+                    {categoryDistribution.map((cat) => (
+                      <div key={cat.category} style={styles.miniRow}>
+                        <div style={styles.miniLabel}>{cat.category}</div>
+                        <div style={styles.miniValue}>{cat.count}</div>
+                        <div style={styles.miniBar}>
+                          <div 
+                            style={{
+                              ...styles.miniFill,
+                              width: `${(cat.count / Math.max(stats.totalCourses, 1)) * 100}%`,
+                              background: '#3b82f6'
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Formateurs en attente */}
+        {pendingInstructors.length > 0 && (
+          <section style={styles.pendingSection}>
+            <h2 style={styles.sectionTitle}>
+              ⏳ Formateurs en Attente d'Approbation ({pendingInstructors.length})
+            </h2>
+            <div style={styles.pendingGrid}>
+              {pendingInstructors.map((instructor) => (
+                <div key={instructor.id} style={styles.pendingCard}>
+                  <div style={styles.pendingHeader}>
+                    <h3 style={styles.pendingName}>
+                      {instructor.prenom} {instructor.nom}
+                    </h3>
+                    <span style={styles.pendingBadge}>En attente</span>
+                  </div>
+                  <p style={styles.pendingEmail}>📧 {instructor.email}</p>
+                  <p style={styles.pendingCentre}>
+                    🏢 {instructor.centreProfession || 'Non spécifié'}
+                  </p>
+                  <p style={styles.pendingDate}>
+                    📅 Demande: {new Date(instructor.dateDemande).toLocaleDateString('fr-FR')}
+                  </p>
+                  <div style={styles.pendingActions}>
+                    <button
+                      style={styles.downloadBtn}
+                      onClick={() => handleDownloadCV(instructor.id, `${instructor.prenom}_${instructor.nom}`)}
+                    >
+                      📄 Voir CV
+                    </button>
+                    <button
+                      style={styles.approveBtn}
+                      onClick={() => handleApproveInstructor(instructor.id)}
+                    >
+                      ✅ Approuver
+                    </button>
+                    <button
+                      style={styles.rejectBtn}
+                      onClick={() => handleRejectInstructor(instructor.id)}
+                    >
+                      ❌ Rejeter
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -412,7 +615,7 @@ export default function AdminDashboard({ user }) {
                       <td style={styles.td}>
                         <span style={{
                           ...styles.badge,
-                          background: user.role === 'admin' ? '#ef4444' : user.role === 'instructor' ? '#3b82f6' : '#10b981'
+                          background: user.role === 'admin' ? '#f97316' : user.role === 'instructor' ? '#f97316' : '#10b981'
                         }}>
                           {user.role === 'admin' ? 'Admin' : user.role === 'instructor' ? 'Formateur' : 'Étudiant'}
                         </span>
@@ -488,6 +691,54 @@ export default function AdminDashboard({ user }) {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }
+        
+        /* Effets hover professionnels */
+        [style*="statCard"]:hover {
+          transform: translateY(-4px) !important;
+          box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+        }
+        
+        [style*="actionBtn"]:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12) !important;
+          border-color: rgba(249, 115, 22, 0.3) !important;
+        }
+        
+        [style*="approveBtn"]:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35) !important;
+        }
+        
+        [style*="rejectBtn"]:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35) !important;
+        }
+        
+        [style*="downloadBtn"]:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35) !important;
+        }
+        
+        [style*="refreshBtn"]:hover {
+          transform: rotate(180deg) scale(1.1) !important;
+        }
+        
+        [style*="logoutBtn"]:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35) !important;
+        }
+        
+        [style*="pendingCard"]:hover {
+          transform: translateY(-4px) !important;
+          box-shadow: 0 8px 24px rgba(251, 191, 36, 0.25) !important;
+        }
+        
+        [style*="searchInput"]:focus,
+        [style*="filterSelect"]:focus {
+          border-color: #f97316 !important;
+          box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1) !important;
+          background: white !important;
+        }
       `}</style>
     </div>
   );
@@ -496,7 +747,7 @@ export default function AdminDashboard({ user }) {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
   },
   loading: {
     display: 'flex',
@@ -521,30 +772,36 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
   },
   error: {
     background: 'white',
-    padding: '40px',
-    borderRadius: '12px',
+    padding: '48px',
+    borderRadius: '16px',
     textAlign: 'center',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)',
+    border: '1px solid rgba(249, 115, 22, 0.1)',
+    maxWidth: '500px',
   },
   retryBtn: {
-    padding: '10px 20px',
-    background: '#3b82f6',
+    padding: '12px 24px',
+    background: '#f97316',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '12px',
     cursor: 'pointer',
-    fontSize: '14px',
+    fontSize: '15px',
     fontWeight: '600',
-    marginTop: '20px',
+    marginTop: '24px',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 4px 12px rgba(249, 115, 22, 0.25)',
   },
   header: {
-    background: 'rgba(255, 255, 255, 0.95)',
-    padding: '20px 40px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+    background: 'rgba(255, 255, 255, 0.98)',
+    padding: '24px 48px',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
+    borderBottom: '1px solid rgba(249, 115, 22, 0.1)',
+    backdropFilter: 'blur(10px)',
   },
   headerContent: {
     display: 'flex',
@@ -593,14 +850,15 @@ const styles = {
     cursor: 'pointer',
   },
   refreshBtn: {
-    padding: '8px 12px',
-    background: '#3b82f6',
+    padding: '10px 14px',
+    background: '#f97316',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '10px',
     cursor: 'pointer',
     fontSize: '18px',
-    transition: 'transform 0.2s',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 2px 8px rgba(249, 115, 22, 0.2)',
   },
   userInfo: {
     display: 'flex',
@@ -612,15 +870,16 @@ const styles = {
     color: '#4b5563',
   },
   logoutBtn: {
-    padding: '10px 20px',
+    padding: '12px 24px',
     background: '#ef4444',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '10px',
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '600',
-    transition: 'all 0.3s',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 2px 8px rgba(239, 68, 68, 0.2)',
   },
   main: {
     maxWidth: '1400px',
@@ -643,14 +902,15 @@ const styles = {
   },
   statCard: {
     background: 'white',
-    borderRadius: '12px',
-    padding: '24px',
+    borderRadius: '16px',
+    padding: '28px',
     display: 'flex',
     alignItems: 'center',
     gap: '20px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-    transition: 'transform 0.3s, box-shadow 0.3s',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     cursor: 'pointer',
+    border: '1px solid rgba(249, 115, 22, 0.08)',
   },
   statIcon: {
     fontSize: '48px',
@@ -684,7 +944,9 @@ const styles = {
   chartSection: {
     marginBottom: '40px',
     background: 'white',
-    borderRadius: '12px',
+    borderRadius: '16px',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
+    border: '1px solid rgba(249, 115, 22, 0.08)',
     padding: '24px',
     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
   },
@@ -745,17 +1007,68 @@ const styles = {
     height: '16px',
     borderRadius: '4px',
   },
+  chartGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gap: '20px',
+    marginTop: '10px',
+  },
+  chartCard: {
+    background: 'white',
+    borderRadius: '16px',
+    padding: '20px',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
+    border: '1px solid rgba(249, 115, 22, 0.08)',
+  },
+  chartCardTitle: {
+    margin: '0 0 12px 0',
+    fontSize: '16px',
+    fontWeight: 700,
+    color: '#1f2937',
+  },
+  miniList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  miniRow: {
+    display: 'grid',
+    gridTemplateColumns: '120px 60px 1fr',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  miniLabel: {
+    fontWeight: 600,
+    color: '#374151',
+    textTransform: 'capitalize',
+  },
+  miniValue: {
+    fontWeight: 700,
+    color: '#111827',
+  },
+  miniBar: {
+    background: '#f3f4f6',
+    borderRadius: '999px',
+    height: '10px',
+    overflow: 'hidden',
+  },
+  miniFill: {
+    height: '100%',
+    borderRadius: '999px',
+    transition: 'width 0.3s ease',
+  },
   filtersSection: {
     marginBottom: '40px',
   },
   filtersContainer: {
     background: 'white',
-    borderRadius: '12px',
-    padding: '20px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    borderRadius: '16px',
+    padding: '24px',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
     display: 'flex',
-    gap: '15px',
+    gap: '16px',
     flexWrap: 'wrap',
+    border: '1px solid rgba(249, 115, 22, 0.08)',
   },
   searchContainer: {
     flex: 1,
@@ -763,31 +1076,34 @@ const styles = {
   },
   searchInput: {
     width: '100%',
-    padding: '12px 16px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
+    padding: '14px 18px',
+    border: '1.5px solid #e5e7eb',
+    borderRadius: '12px',
     fontSize: '14px',
-    transition: 'border-color 0.3s',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    background: '#f8fafc',
   },
   filterGroup: {
     display: 'flex',
     gap: '10px',
   },
   filterSelect: {
-    padding: '12px 16px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
+    padding: '14px 18px',
+    border: '1.5px solid #e5e7eb',
+    borderRadius: '12px',
     fontSize: '14px',
-    background: 'white',
+    background: '#f8fafc',
     cursor: 'pointer',
-    transition: 'border-color 0.3s',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    fontWeight: '500',
   },
   recentSection: {
     background: 'white',
-    borderRadius: '12px',
-    padding: '24px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    borderRadius: '16px',
+    padding: '32px',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
     marginBottom: '40px',
+    border: '1px solid rgba(249, 115, 22, 0.08)',
   },
   tableContainer: {
     overflowX: 'auto',
@@ -822,7 +1138,7 @@ const styles = {
   actionBtnSmall: {
     padding: '6px 12px',
     margin: '0 4px',
-    background: '#3b82f6',
+                    background: '#f97316',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -839,15 +1155,116 @@ const styles = {
     gap: '15px',
   },
   actionBtn: {
-    padding: '16px 24px',
+    padding: '18px 28px',
     background: 'white',
-    border: 'none',
-    borderRadius: '10px',
+    border: '1.5px solid rgba(249, 115, 22, 0.15)',
+    borderRadius: '12px',
     fontSize: '16px',
     fontWeight: '600',
     cursor: 'pointer',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-    transition: 'all 0.3s',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     color: '#1f2937',
+  },
+  pendingSection: {
+    marginBottom: '40px',
+    background: 'white',
+    borderRadius: '16px',
+    padding: '32px',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
+    border: '1px solid rgba(249, 115, 22, 0.08)',
+  },
+  pendingGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gap: '20px',
+    marginTop: '20px',
+  },
+  pendingCard: {
+    background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+    border: '1.5px solid #fbbf24',
+    borderRadius: '16px',
+    padding: '24px',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 4px 12px rgba(251, 191, 36, 0.15)',
+  },
+  pendingHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '15px',
+  },
+  pendingName: {
+    margin: 0,
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  pendingBadge: {
+    padding: '4px 12px',
+    background: '#f59e0b',
+    color: 'white',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
+  },
+  pendingEmail: {
+    margin: '5px 0',
+    fontSize: '14px',
+    color: '#4b5563',
+  },
+  pendingCentre: {
+    margin: '5px 0',
+    fontSize: '14px',
+    color: '#4b5563',
+  },
+  pendingDate: {
+    margin: '5px 0 15px 0',
+    fontSize: '12px',
+    color: '#6b7280',
+  },
+  pendingActions: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+  },
+  downloadBtn: {
+    flex: 1,
+    padding: '12px 16px',
+    background: '#f97316',
+    color: 'white',
+    border: 'none',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 2px 8px rgba(249, 115, 22, 0.2)',
+  },
+  approveBtn: {
+    flex: 1,
+    padding: '12px 16px',
+    background: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.2)',
+  },
+  rejectBtn: {
+    flex: 1,
+    padding: '12px 16px',
+    background: '#ef4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 2px 8px rgba(239, 68, 68, 0.2)',
   },
 };

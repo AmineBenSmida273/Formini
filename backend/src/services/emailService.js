@@ -114,16 +114,9 @@ exports.sendInstructorApprovalRequest = async (instructor) => {
     const transporter = createTransporter();
     if (!transporter) return true;
 
-    // Récupérer l'email de l'admin (premier admin trouvé)
-    const User = require('../models/user.model');
-    const admin = await User.findOne({ role: 'admin' });
-    
-    if (!admin) {
-      console.log("⚠️ Aucun admin trouvé pour recevoir la notification");
-      return false;
-    }
-
-    const adminEmail = admin.email;
+    // Utiliser l'email de l'admin unique depuis la config
+    const { ADMIN_EMAIL } = require('../utils/adminConfig');
+    const adminEmail = ADMIN_EMAIL;
 
     const mailOptions = {
       from: `Formini <${FROM_EMAIL}>`,

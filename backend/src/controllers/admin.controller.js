@@ -1,5 +1,6 @@
 const User = require('../models/user.model');
 const { sendInstructorApprovalNotification } = require('../services/emailService');
+const { ADMIN_EMAIL, isMainAdminUser } = require('../utils/adminConfig');
 const path = require('path');
 const fs = require('fs');
 
@@ -152,6 +153,54 @@ exports.downloadCV = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: 'Erreur lors du téléchargement',
+      error: error.message
+    });
+  }
+};
+
+// Changer le statut d'un utilisateur (suspendre/activer)
+exports.toggleUserStatus = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { statut } = req.body;
+
+    if (!['active', 'suspendue'].includes(statut)) {
+      return res.status(400).json({ message: 'Statut invalide' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+
+    // Ne pas permettre de suspendre ou modifier le compte admin principal
+    if (isMainAdminUser(user)) {
+      return res.status(403).json({ 
+        message: `Impossible de modifier le compte administrateur principal (${ADMIN_EMAIL})` 
+      });
+    }
+
+    // Ne pas permettre de suspendre un autre admin
+    if (user.role === 'admin' && statut === 'suspendue') {
+      return res.status(403).json({ message: 'Impossible de suspendre un administrateur' });
+    }
+
+    user.statut = statut;
+    await user.save();
+
+    res.json({
+      message: `Utilisateur ${statut === 'active' ? 'activé' : 'suspendu'} avec succès`,
+      user: {
+        id: user._id,
+        nom: user.nom,
+        prenom: user.prenom,
+        email: user.email,
+        statut: user.statut
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Erreur lors de la modification du statut',
       error: error.message
     });
   }

@@ -106,7 +106,15 @@ const MFAVerification = () => {
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         localStorage.removeItem('pendingVerificationEmail');
-        navigate('/dashboard');
+        
+        // Rediriger vers le dashboard approprié selon le rôle
+        if (user.role === 'admin') {
+          navigate('/dashboard'); // Dashboard.js affichera AdminDashboard
+        } else if (user.role === 'instructor') {
+          navigate('/dashboard'); // Dashboard.js affichera InstructorDashboard
+        } else {
+          navigate('/dashboard'); // Dashboard.js affichera StudentDashboard
+        }
       } else {
         setError('Réponse inattendue du serveur. Merci de réessayer.');
       }
@@ -232,17 +240,18 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: "linear-gradient(120deg, #ef7212bb, #ffffffff, #ef7212bb)",
+    background: "linear-gradient(135deg, #ffdab2ff, #fb923c)",
     padding: '0px',
     fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
   },
   card: {
     background: 'white',
-    borderRadius: '20px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-    padding: '40px',
+    borderRadius: '24px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)',
+    padding: '48px',
     width: '100%',
-    maxWidth: '450px',
+    maxWidth: '480px',
+    border: '1px solid rgba(249, 115, 22, 0.1)',
   },
   header: {
     textAlign: 'center',
@@ -293,16 +302,16 @@ const styles = {
     marginBottom: '15px',
   },
   codeInput: {
-    width: '50px',
-    height: '60px',
+    width: '56px',
+    height: '64px',
     border: '2px solid #e5e7eb',
-    borderRadius: '10px',
+    borderRadius: '12px',
     textAlign: 'center',
     fontSize: '1.5rem',
-    fontWeight: 'bold',
+    fontWeight: '600',
     outline: 'none',
-    transition: 'all 0.3s ease',
-    background: '#f8f9fc',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    background: '#f8fafc',
   },
   timer: {
     color: '#6b7280',
@@ -313,12 +322,14 @@ const styles = {
     background: '#f97316',
     color: 'white',
     border: 'none',
-    padding: '15px',
-    borderRadius: '10px',
+    padding: '16px 24px',
+    borderRadius: '12px',
     fontSize: '1rem',
-    fontWeight: 'bold',
+    fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.3s ease',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: '0 4px 12px rgba(249, 115, 22, 0.25)',
+    width: '100%',
   },
   buttonDisabled: {
     opacity: '0.6',
@@ -373,13 +384,20 @@ const styleElement = document.createElement('style');
 styleElement.textContent = `
   .code-input:focus {
     border-color: #f97316 !important;
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1) !important;
+    box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.12) !important;
     background: white !important;
+    transform: scale(1.02);
   }
   
   .button:hover:not(:disabled) {
     background: #ea580c !important;
     transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.35) !important;
+  }
+  
+  .button:active:not(:disabled) {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.25) !important;
   }
   
   .resend-button:hover:not(:disabled) {

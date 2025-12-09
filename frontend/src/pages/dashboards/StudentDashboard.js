@@ -20,7 +20,8 @@ export default function StudentDashboard({ user }) {
   const [error, setError] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [selectedTimeframe, setSelectedTimeframe] = useState('week');
-  const [progressData, setProgressData] = useState([]);
+  const [activityTimeline, setActivityTimeline] = useState([]);
+  const [courseProgress, setCourseProgress] = useState([]);
   const refreshIntervalRef = useRef(null);
 
   useEffect(() => {
@@ -38,10 +39,6 @@ export default function StudentDashboard({ user }) {
       }
     };
   }, [autoRefresh]);
-
-  useEffect(() => {
-    generateProgressData();
-  }, [selectedTimeframe, myCourses]);
 
   const fetchDashboardData = async () => {
     try {
@@ -65,6 +62,8 @@ export default function StudentDashboard({ user }) {
       setRecentActivity(data.recentActivity || []);
       setRecommendedCourses(data.recommendedCourses || []);
       setUpcomingDeadlines(data.upcomingDeadlines || []);
+      setActivityTimeline(data.activityTimeline || []);
+      setCourseProgress(data.courseProgressChart || []);
       
       setLoading(false);
     } catch (error) {
@@ -72,25 +71,6 @@ export default function StudentDashboard({ user }) {
       setError('Impossible de charger les données du dashboard');
       setLoading(false);
     }
-  };
-
-  const generateProgressData = () => {
-    // Générer des données de progression pour le graphique
-    const days = selectedTimeframe === 'week' ? 7 : selectedTimeframe === 'month' ? 30 : 90;
-    const data = [];
-    const today = new Date();
-    
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      data.push({
-        date: date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
-        hours: Math.floor(Math.random() * 3) + 1,
-        lessons: Math.floor(Math.random() * 2) + 1,
-      });
-    }
-    
-    setProgressData(data);
   };
 
   const handleLogout = () => {
@@ -110,8 +90,8 @@ export default function StudentDashboard({ user }) {
   };
 
   const getMaxProgressValue = () => {
-    if (progressData.length === 0) return 5;
-    return Math.max(...progressData.map(d => Math.max(d.hours, d.lessons)));
+    if (activityTimeline.length === 0) return 1;
+    return Math.max(...activityTimeline.map(d => d.actions || 0), 1);
   };
 
   if (loading && myCourses.length === 0) {
@@ -123,7 +103,10 @@ export default function StudentDashboard({ user }) {
     );
   }
 
-  const maxProgressValue = getMaxProgressValue();
+  const displayedActivity = activityTimeline.slice(-(selectedTimeframe === 'week' ? 7 : 14));
+  const maxProgressValue = displayedActivity.length > 0
+    ? Math.max(...displayedActivity.map(d => d.actions || 0), 1)
+    : 1;
 
   return (
     <div style={styles.container}>
@@ -172,7 +155,7 @@ export default function StudentDashboard({ user }) {
                   <div style={{
                     ...styles.statProgressBar, 
                     width: `${(stats.coursesEnrolled / 20) * 100}%`, 
-                    background: '#3b82f6'
+                    background: '#f97316'
                   }}></div>
                 </div>
               </div>
@@ -218,7 +201,7 @@ export default function StudentDashboard({ user }) {
                   <div style={{
                     ...styles.statProgressBar, 
                     width: `${(stats.certificates / stats.coursesCompleted) * 100}%`, 
-                    background: '#8b5cf6'
+                    background: '#f97316'
                   }}></div>
                 </div>
               </div>
@@ -256,43 +239,33 @@ export default function StudentDashboard({ user }) {
           </div>
         </section>
 
-        {/* Graphique de progression */}
-        {progressData.length > 0 && (
+        {/* Graphique d'activité réelle */}
+        {displayedActivity.length > 0 && (
           <section style={styles.chartSection}>
             <div style={styles.chartHeader}>
-              <h2 style={styles.sectionTitle}>📈 Ma Progression</h2>
+              <h2 style={styles.sectionTitle}>📈 Activité (actions réelles)</h2>
               <select
                 value={selectedTimeframe}
                 onChange={(e) => setSelectedTimeframe(e.target.value)}
                 style={styles.timeframeSelect}
               >
                 <option value="week">7 derniers jours</option>
-                <option value="month">30 derniers jours</option>
-                <option value="quarter">90 derniers jours</option>
+                <option value="month">14 derniers jours</option>
+                <option value="quarter">14 derniers jours</option>
               </select>
             </div>
             <div style={styles.chartContainer}>
               <div style={styles.chart}>
-                {progressData.map((data, index) => (
+                {displayedActivity.map((data, index) => (
                   <div key={index} style={styles.chartBar}>
-                    <div style={styles.chartBars}>
-                      <div 
-                        style={{
-                          ...styles.chartBarItem,
-                          height: `${(data.hours / maxProgressValue) * 100}%`,
-                          background: '#3b82f6',
-                          title: `${data.hours}h`
-                        }}
-                      ></div>
-                      <div 
-                        style={{
-                          ...styles.chartBarItem,
-                          height: `${(data.lessons / maxProgressValue) * 100}%`,
-                          background: '#10b981',
-                          title: `${data.lessons} leçons`
-                        }}
-                      ></div>
-                    </div>
+                    <div 
+                      style={{
+                        ...styles.chartBarItem,
+                        height: `${(data.actions / maxProgressValue) * 100}%`,
+                        background: '#3b82f6',
+                        title: `${data.actions} actions`
+                      }}
+                    ></div>
                     <span style={styles.chartLabel}>{data.date}</span>
                   </div>
                 ))}
@@ -300,13 +273,35 @@ export default function StudentDashboard({ user }) {
               <div style={styles.chartLegend}>
                 <div style={styles.legendItem}>
                   <div style={{...styles.legendColor, background: '#3b82f6'}}></div>
-                  <span>Heures</span>
-                </div>
-                <div style={styles.legendItem}>
-                  <div style={{...styles.legendColor, background: '#10b981'}}></div>
-                  <span>Leçons</span>
+                  <span>Quiz, inscriptions, cours</span>
                 </div>
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* Progression par cours */}
+        {courseProgress.length > 0 && (
+          <section style={styles.progressByCourseSection}>
+            <h2 style={styles.sectionTitle}>📊 Progression par cours</h2>
+            <div style={styles.courseProgressGrid}>
+              {courseProgress.map((course) => (
+                <div key={course.course} style={styles.courseProgressCard}>
+                  <div style={styles.courseProgressHeader}>
+                    <span style={styles.courseProgressTitle}>{course.course}</span>
+                    <span style={styles.courseProgressValue}>{course.progress}%</span>
+                  </div>
+                  <div style={styles.courseProgressBar}>
+                    <div 
+                      style={{
+                        ...styles.courseProgressFill,
+                        width: `${course.progress}%`
+                      }}
+                    ></div>
+                  </div>
+                  <span style={styles.courseProgressStatus}>{course.status}</span>
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -356,7 +351,7 @@ export default function StudentDashboard({ user }) {
                   <span style={{
                     ...styles.statusBadge,
                     background: course.status === 'Terminé' ? '#10b981' : 
-                                course.status === 'En cours' ? '#3b82f6' : '#6b7280'
+                                course.status === 'En cours' ? '#f97316' : '#6b7280'
                   }}>
                     {course.status}
                   </span>
@@ -486,7 +481,7 @@ export default function StudentDashboard({ user }) {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
   },
   loading: {
     display: 'flex',
@@ -559,7 +554,7 @@ const styles = {
   },
   refreshBtn: {
     padding: '8px 12px',
-    background: '#3b82f6',
+    background: '#f97316',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -728,6 +723,55 @@ const styles = {
     height: '16px',
     borderRadius: '4px',
   },
+  progressByCourseSection: {
+    marginBottom: '40px',
+    background: 'white',
+    borderRadius: '12px',
+    padding: '24px',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+  },
+  courseProgressGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+    gap: '16px',
+  },
+  courseProgressCard: {
+    border: '1px solid #e5e7eb',
+    borderRadius: '10px',
+    padding: '14px',
+    background: '#f9fafb',
+  },
+  courseProgressHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px',
+  },
+  courseProgressTitle: {
+    fontWeight: 600,
+    color: '#111827',
+  },
+  courseProgressValue: {
+    fontWeight: 700,
+    color: '#2563eb',
+  },
+  courseProgressBar: {
+    height: '8px',
+    background: '#e5e7eb',
+    borderRadius: '999px',
+    overflow: 'hidden',
+    marginBottom: '6px',
+  },
+  courseProgressFill: {
+    height: '100%',
+    background: '#2563eb',
+    borderRadius: '999px',
+    transition: 'width 0.3s ease',
+  },
+  courseProgressStatus: {
+    fontSize: '12px',
+    color: '#6b7280',
+  },
   deadlinesSection: {
     marginBottom: '40px',
     background: 'white',
@@ -827,7 +871,7 @@ const styles = {
   nextLesson: {
     margin: '0 0 5px 0',
     fontSize: '13px',
-    color: '#3b82f6',
+    color: '#f97316',
     fontWeight: '500',
   },
   deadlineInfo: {
@@ -863,7 +907,7 @@ const styles = {
   continueBtn: {
     width: '100%',
     padding: '12px',
-    background: '#3b82f6',
+    background: '#f97316',
     color: 'white',
     border: 'none',
     borderRadius: '8px',

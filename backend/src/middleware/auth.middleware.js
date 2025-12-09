@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
+const { isMainAdminUser } = require('../utils/adminConfig');
 
 // Middleware pour vérifier le token JWT
 exports.verifyToken = async (req, res, next) => {
@@ -18,7 +19,10 @@ exports.verifyToken = async (req, res, next) => {
     }
 
     if (user.statut !== 'active') {
-      return res.status(403).json({ message: 'Compte suspendu' });
+      // Exception pour l'admin principal - toujours actif
+      if (!isMainAdminUser(user)) {
+        return res.status(403).json({ message: 'Compte suspendu' });
+      }
     }
 
     // Vérifier si formateur en attente d'approbation

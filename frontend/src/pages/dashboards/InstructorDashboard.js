@@ -39,11 +39,6 @@ export default function InstructorDashboard({ user }) {
     };
   }, [autoRefresh]);
 
-  useEffect(() => {
-    generateRevenueData();
-    generateEngagementData();
-  }, [selectedTimeframe, stats]);
-
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -64,6 +59,8 @@ export default function InstructorDashboard({ user }) {
       
       setMyCourses(data.myCourses || []);
       setRecentEnrollments(data.recentEnrollments || []);
+      setRevenueData(data.revenueTimeline || []);
+      setStudentEngagement(data.engagementByCourse || []);
       
       setLoading(false);
     } catch (error) {
@@ -73,51 +70,19 @@ export default function InstructorDashboard({ user }) {
     }
   };
 
-  const generateRevenueData = () => {
-    const days = selectedTimeframe === 'week' ? 7 : selectedTimeframe === 'month' ? 30 : 90;
-    const data = [];
-    const today = new Date();
-    const baseRevenue = stats.totalRevenue / days;
-    
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      data.push({
-        date: date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
-        revenue: Math.floor(baseRevenue * (0.5 + Math.random())),
-      });
-    }
-    
-    setRevenueData(data);
-  };
-
-  const generateEngagementData = () => {
-    // Générer des données d'engagement par cours
-    const engagement = myCourses.map(course => ({
-      courseId: course.id,
-      courseName: course.title,
-      activeStudents: course.students || 0,
-      completionRate: course.completionRate || 0,
-      avgTimeSpent: Math.floor(Math.random() * 20) + 10, // heures
-      lastActivity: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
-    }));
-    
-    setStudentEngagement(engagement);
-  };
-
   const handleLogout = () => {
     authService.logout();
     navigate('/login');
   };
 
-  const getMaxRevenueValue = () => {
-    if (revenueData.length === 0) return 1000;
-    return Math.max(...revenueData.map(d => d.revenue));
+  const getMaxRevenueValue = (series) => {
+    if (!series || series.length === 0) return 1;
+    return Math.max(...series.map(d => d.revenue), 1);
   };
 
   const getMaxEngagementValue = () => {
-    if (studentEngagement.length === 0) return 100;
-    return Math.max(...studentEngagement.map(e => e.activeStudents));
+    if (studentEngagement.length === 0) return 1;
+    return Math.max(...studentEngagement.map(e => e.students || 0), 1);
   };
 
   const sortedCourses = [...myCourses].sort((a, b) => {
@@ -156,7 +121,9 @@ export default function InstructorDashboard({ user }) {
     );
   }
 
-  const maxRevenueValue = getMaxRevenueValue();
+  const revenueWindow = selectedTimeframe === 'week' ? 7 : selectedTimeframe === 'quarter' ? 30 : 30;
+  const displayedRevenue = revenueData.slice(-revenueWindow);
+  const maxRevenueValue = getMaxRevenueValue(displayedRevenue);
   const maxEngagementValue = getMaxEngagementValue();
 
   return (
@@ -207,7 +174,7 @@ export default function InstructorDashboard({ user }) {
                   <div style={{
                     ...styles.statProgressBar, 
                     width: `${(stats.activeCourses / stats.totalCourses) * 100}%`, 
-                    background: '#3b82f6'
+                    background: '#f97316'
                   }}></div>
                 </div>
               </div>
@@ -255,7 +222,7 @@ export default function InstructorDashboard({ user }) {
                   <div style={{
                     ...styles.statProgressBar, 
                     width: `${(stats.averageRating / 5) * 100}%`, 
-                    background: '#8b5cf6'
+                    background: '#f97316'
                   }}></div>
                 </div>
               </div>
@@ -280,7 +247,7 @@ export default function InstructorDashboard({ user }) {
             </div>
             <div style={styles.chartContainer}>
               <div style={styles.chart}>
-                {revenueData.map((data, index) => (
+                {displayedRevenue.map((data, index) => (
                   <div key={index} style={styles.chartBar}>
                     <div 
                       style={{
@@ -305,26 +272,22 @@ export default function InstructorDashboard({ user }) {
             <div style={styles.engagementContainer}>
               {studentEngagement.map((engagement) => (
                 <div key={engagement.courseId} style={styles.engagementCard}>
-                  <h4 style={styles.engagementCourseName}>{engagement.courseName}</h4>
+                  <h4 style={styles.engagementCourseName}>{engagement.title}</h4>
                   <div style={styles.engagementStats}>
                     <div style={styles.engagementStat}>
                       <span style={styles.engagementStatLabel}>Étudiants actifs:</span>
-                      <span style={styles.engagementStatValue}>{engagement.activeStudents}</span>
+                      <span style={styles.engagementStatValue}>{engagement.students}</span>
                     </div>
                     <div style={styles.engagementStat}>
                       <span style={styles.engagementStatLabel}>Taux de complétion:</span>
                       <span style={styles.engagementStatValue}>{engagement.completionRate}%</span>
-                    </div>
-                    <div style={styles.engagementStat}>
-                      <span style={styles.engagementStatLabel}>Temps moyen:</span>
-                      <span style={styles.engagementStatValue}>{engagement.avgTimeSpent}h</span>
                     </div>
                   </div>
                   <div style={styles.engagementBar}>
                     <div 
                       style={{
                         ...styles.engagementBarFill,
-                        width: `${(engagement.activeStudents / maxEngagementValue) * 100}%`,
+                        width: `${(engagement.students / maxEngagementValue) * 100}%`,
                       }}
                     ></div>
                   </div>
@@ -507,7 +470,7 @@ export default function InstructorDashboard({ user }) {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
   },
   loading: {
     display: 'flex',
@@ -532,7 +495,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
   },
   error: {
     background: 'white',
@@ -543,7 +506,7 @@ const styles = {
   },
   retryBtn: {
     padding: '10px 20px',
-    background: '#3b82f6',
+    background: '#f97316',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -605,7 +568,7 @@ const styles = {
   },
   refreshBtn: {
     padding: '8px 12px',
-    background: '#3b82f6',
+    background: '#f97316',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -800,7 +763,7 @@ const styles = {
   },
   engagementBarFill: {
     height: '100%',
-    background: 'linear-gradient(90deg, #f093fb 0%, #f5576c 100%)',
+    background: 'linear-gradient(90deg, #f97316, #fb923c)',
     borderRadius: '4px',
     transition: 'width 0.5s ease',
   },
@@ -891,7 +854,7 @@ const styles = {
   },
   completionBarFill: {
     height: '100%',
-    background: 'linear-gradient(90deg, #f093fb 0%, #f5576c 100%)',
+    background: 'linear-gradient(90deg, #f97316, #fb923c)',
     borderRadius: '3px',
     transition: 'width 0.5s ease',
   },
@@ -913,7 +876,7 @@ const styles = {
   viewBtn: {
     flex: 1,
     padding: '10px',
-    background: '#3b82f6',
+    background: '#f97316',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -975,7 +938,7 @@ const styles = {
   },
   createBtn: {
     padding: '12px 24px',
-    background: '#3b82f6',
+    background: '#f97316',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
