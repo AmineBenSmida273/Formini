@@ -204,7 +204,7 @@ export default function SignIn() {
               <button 
                 style={styles.socialButton}
                 onClick={() => {
-                  window.location.href = "http://localhost:5000/api/auth/google";
+                  window.location.href = "https://formini-backend.onrender.com/api/auth/google";
                 }}
               >
                 <span style={styles.socialIcon}>🔴</span>
