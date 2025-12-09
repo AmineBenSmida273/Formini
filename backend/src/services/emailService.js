@@ -146,7 +146,7 @@ exports.sendInstructorApprovalRequest = async (instructor) => {
               Veuillez examiner la demande et approuver ou rejeter le formateur depuis le dashboard administrateur.
             </p>
             <div style="text-align:center; margin-top:30px;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" 
+              <a href="${process.env.FRONTEND_URL || 'https://formini-front-end.onrender.com'}/dashboard" 
                  style="background:#f97316; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; display:inline-block;">
                 Voir le dashboard admin
               </a>
@@ -212,7 +212,7 @@ exports.sendInstructorApprovalNotification = async (instructor, approved) => {
             </p>
             ${approved ? `
               <div style="text-align:center; margin-top:30px;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/login" 
+                <a href="${process.env.FRONTEND_URL || 'https://formini-front-end.onrender.com'}/login" 
                    style="background:#f97316; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; display:inline-block;">
                   Se connecter
                 </a>
