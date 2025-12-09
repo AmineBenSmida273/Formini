@@ -1,0 +1,666 @@
+const User = require('../models/user.model');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { sendVerificationCode, sendInstructorApprovalRequest, sendInstructorApprovalNotification } = require('../services/emailService');
+const { ADMIN_EMAIL, isAdminEmail, isMainAdminUser } = require('../utils/adminConfig');
+const path = require('path');
+
+const { verifyGoogleToken } = require("../utils/google");
+const { OAuth2Client } = require("google-auth-library");
+
+const axios = require('axios');
+
+const client = new OAuth2Client({
+  clientId: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  redirectUri: process.env.GOOGLE_REDIRECT_URI,
+});
+
+const generateVerificationCode = () => crypto.randomInt(100000, 999999).toString();
+
+// Normalise les données utilisateur à retourner au frontend
+const formatUser = (user) => ({
+  id: user._id,
+  nom: user.nom,
+  prenom: user.prenom,
+  email: user.email,
+  role: user.role,
+  statut: user.statut,
+  pdp: user.pdp,
+});
+
+/* ============================================================
+   ===============   REGISTER WITH MFA   ========================
+   ============================================================ */
+const registerWithMFA = async (req, res) => {
+  try {
+    const { nom, prenom, email, mdp, role, centreProfession } = req.body;
+    const cvPath = req.uploadedCV; // Chemin du fichier CV uploadé
+
+    // Vérifier que le rôle n'est pas admin (restriction absolue)
+    if (role === 'admin') {
+      return res.status(403).json({ 
+        message: `La création de comptes administrateur n'est pas autorisée. Un seul compte admin existe: ${ADMIN_EMAIL}` 
+      });
+    }
+
+    // Empêcher la création d'un compte avec l'email admin
+    if (isAdminEmail(email)) {
+      return res.status(403).json({ 
+        message: `Cet email est réservé au compte administrateur unique` 
+      });
+    }
+
+    if (!nom || !prenom || !email || !mdp) {
+      return res.status(400).json({ message: 'Tous les champs obligatoires doivent être remplis' });
+    }
+
+    // Pour les formateurs, vérifier CV et centre de profession
+    if (role === 'instructor') {
+      if (!cvPath) {
+        return res.status(400).json({ 
+          message: 'Le CV (PDF) est obligatoire pour les formateurs' 
+        });
+      }
+      if (!centreProfession || centreProfession.trim() === '') {
+        return res.status(400).json({ 
+          message: 'Le centre de profession est obligatoire pour les formateurs' 
+        });
+      }
+    }
+
+    if (mdp.length < 8) {
+      return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 8 caractères' });
+    }
+
+    const emailRegex = /^.+@.+\..+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Format d\'email invalide' });
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Un utilisateur avec cet email existe déjà' });
+    }
+
+    const hashedPassword = await bcrypt.hash(mdp, 12);
+    const verificationCode = generateVerificationCode();
+    const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    const userData = {
+      nom: nom.trim(),
+      prenom: prenom.trim(),
+      email: email.toLowerCase().trim(),
+      mdp: hashedPassword,
+      role: role || 'student',
+      pdp: null,
+      dateinscri: new Date(),
+      statut: role === 'instructor' ? 'suspendue' : 'active', // Formateurs suspendus en attente d'approbation
+      isVerified: false,
+      verificationCode,
+      verificationCodeExpires
+    };
+
+    // Ajouter les champs spécifiques aux formateurs
+    if (role === 'instructor') {
+      userData.cv = cvPath;
+      userData.centreProfession = centreProfession.trim();
+      userData.statutInscription = 'pending';
+      userData.dateDemande = new Date();
+    }
+
+    const user = new User(userData);
+    await user.save();
+
+    let emailSent = false;
+    try {
+      emailSent = await sendVerificationCode(email, verificationCode);
+    } catch (err) {
+      emailSent = false;
+    }
+
+    // Si formateur, envoyer email à l'admin pour approbation
+    if (role === 'instructor') {
+      try {
+        await sendInstructorApprovalRequest(user);
+      } catch (err) {
+        console.error('Erreur envoi email admin:', err);
+      }
+    }
+
+    console.log('📧 Code MFA :', verificationCode);
+
+    res.status(201).json({
+      message: role === 'instructor'
+        ? 'Compte créé. Votre demande est en attente d\'approbation par l\'administrateur. Un code de vérification a été envoyé à votre email.'
+        : emailSent
+          ? 'Compte créé. Un code a été envoyé à votre email.'
+          : 'Compte créé. Vérifiez la console pour le code.',
+      userId: user._id,
+      email: user.email,
+      emailSent,
+      requiresApproval: role === 'instructor'
+    });
+
+  } catch (error) {
+    console.error('Erreur register MFA:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+
+/* ============================================================
+   ===============       VERIFY MFA      ========================
+   ============================================================ */
+const verifyMFA = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+      verificationCode: code,
+      verificationCodeExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Code invalide ou expiré' });
+    }
+
+    // Vérifier si c'est l'admin principal - toujours autorisé
+    const isMainAdmin = isMainAdminUser(user);
+
+    // Vérifier le statut (sauf pour l'admin principal)
+    if (user.statut !== 'active' && !isMainAdmin) {
+      return res.status(403).json({ message: 'Votre compte est suspendu' });
+    }
+
+    // Vérifier si formateur en attente d'approbation
+    if (user.role === 'instructor' && user.statutInscription === 'pending') {
+      return res.status(403).json({ 
+        message: 'Votre demande d\'inscription est en attente d\'approbation par l\'administrateur' 
+      });
+    }
+
+    // Vérifier si formateur rejeté
+    if (user.role === 'instructor' && user.statutInscription === 'rejected') {
+      return res.status(403).json({ 
+        message: 'Votre demande d\'inscription a été rejetée. Veuillez contacter l\'administrateur.' 
+      });
+    }
+
+    user.isVerified = true;
+    user.verificationCode = undefined;
+    user.verificationCodeExpires = undefined;
+
+    await user.save();
+
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    console.log('✅ MFA vérifié pour:', user.email, 'Rôle:', user.role);
+
+    res.json({
+      message: 'Compte vérifié',
+      user: formatUser(user),
+      token,
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+
+/* ============================================================
+   ===============   RESEND VERIFICATION   ======================
+   ============================================================ */
+const resendVerificationCode = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email: email.toLowerCase().trim(), isVerified: false });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Utilisateur non trouvé ou déjà vérifié' });
+    }
+
+    const verificationCode = generateVerificationCode();
+    user.verificationCode = verificationCode;
+    user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    await user.save();
+
+    await sendVerificationCode(email, verificationCode);
+
+    res.json({
+      message: 'Nouveau code envoyé',
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+
+/* ============================================================
+   ===============   REGISTER SIMPLE   ==========================
+   ============================================================ */
+const register = async (req, res) => {
+  try {
+    const { nom, prenom, email, mdp, role } = req.body;
+
+    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existing) {
+      return res.status(400).json({ message: 'Email déjà utilisé' });
+    }
+
+    // Empêcher la création de comptes admin
+    if (role === 'admin') {
+      return res.status(403).json({ 
+        message: `La création de comptes administrateur n'est pas autorisée. Un seul compte admin existe: ${ADMIN_EMAIL}` 
+      });
+    }
+
+    // Empêcher la création d'un compte avec l'email admin
+    if (isAdminEmail(email)) {
+      return res.status(403).json({ 
+        message: `Cet email est réservé au compte administrateur unique` 
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(mdp, 12);
+
+    const user = await User.create({
+      nom,
+      prenom,
+      email: email.toLowerCase().trim(),
+      mdp: hashedPassword,
+      role: role || 'student',
+      pdp: null,
+      statut: 'active',
+      dateinscri: new Date(),
+      isVerified: true
+    });
+
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.status(201).json({
+      message: 'Inscription réussie',
+      token,
+      user: formatUser(user)
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+
+/* ============================================================
+   ====================== LOGIN ================================
+   ============================================================ */
+const login = async (req, res) => {
+  try {
+    const { email, mdp } = req.body;
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) return res.status(400).json({ message: 'Email ou mot de passe incorrect' });
+
+    const ok = await bcrypt.compare(mdp, user.mdp);
+    if (!ok) return res.status(400).json({ message: 'Email ou mot de passe incorrect' });
+
+    // Vérifier si c'est l'admin principal - toujours autorisé
+    const isMainAdmin = isMainAdminUser(user);
+
+    if (!user.isVerified && !isMainAdmin) {
+      return res.status(400).json({ message: 'Veuillez vérifier votre email.' });
+    }
+
+    // L'admin principal peut toujours se connecter même si suspendu
+    if (user.statut !== 'active' && !isMainAdmin) {
+      return res.status(403).json({ message: 'Votre compte est suspendu' });
+    }
+
+    // Vérifier si formateur en attente d'approbation
+    if (user.role === 'instructor' && user.statutInscription === 'pending') {
+      return res.status(403).json({ 
+        message: 'Votre demande d\'inscription est en attente d\'approbation par l\'administrateur' 
+      });
+    }
+
+    // Vérifier si formateur rejeté
+    if (user.role === 'instructor' && user.statutInscription === 'rejected') {
+      return res.status(403).json({ 
+        message: 'Votre demande d\'inscription a été rejetée. Veuillez contacter l\'administrateur.' 
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    console.log('✅ Connexion réussie pour:', user.email, 'Rôle:', user.role);
+
+    res.json({
+      message: 'Connexion réussie',
+      token,
+      user: formatUser(user),
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+/* ============================================================
+   ================== LOGIN AVEC MFA ===========================
+   ============================================================ */
+const loginWithMFA = async (req, res) => {
+  try {
+    const { email, mdp } = req.body;
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) return res.status(400).json({ message: 'Email ou mot de passe incorrect' });
+
+    const ok = await bcrypt.compare(mdp, user.mdp);
+    if (!ok) return res.status(400).json({ message: 'Email ou mot de passe incorrect' });
+
+    // Vérifier si c'est l'admin principal - toujours autorisé
+    const isMainAdmin = isMainAdminUser(user);
+
+    if (!user.isVerified && !isMainAdmin) {
+      return res.status(400).json({ message: 'Votre compte n\'est pas encore vérifié.' });
+    }
+
+    // L'admin principal peut toujours se connecter même si suspendu
+    if (user.statut !== 'active' && !isMainAdmin) {
+      return res.status(403).json({ message: 'Votre compte est suspendu' });
+    }
+
+    // Vérifier si formateur en attente d'approbation
+    if (user.role === 'instructor' && user.statutInscription === 'pending') {
+      return res.status(403).json({ 
+        message: 'Votre demande d\'inscription est en attente d\'approbation par l\'administrateur' 
+      });
+    }
+
+    // Vérifier si formateur rejeté
+    if (user.role === 'instructor' && user.statutInscription === 'rejected') {
+      return res.status(403).json({ 
+        message: 'Votre demande d\'inscription a été rejetée. Veuillez contacter l\'administrateur.' 
+      });
+    }
+
+    const verificationCode = generateVerificationCode();
+    user.verificationCode = verificationCode;
+    user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+    await user.save();
+
+    let emailSent = false;
+    try {
+      emailSent = await sendVerificationCode(email, verificationCode);
+    } catch (err) {
+      emailSent = false;
+    }
+
+    console.log('📧 Code MFA envoyé pour:', user.email, 'Rôle:', user.role);
+
+    res.json({
+      message: emailSent
+        ? 'Code envoyé. Veuillez vérifier votre email.'
+        : 'Code généré. Vérifiez la console pour le code.',
+      emailSent,
+      email: user.email,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+
+/* ============================================================
+   ================= GOOGLE OAUTH ==============================
+   ============================================================ */
+
+// Step 1 : redirect Google URL
+const googleAuthRedirect = (req, res) => {
+  const url = client.generateAuthUrl({
+    access_type: "offline",
+    prompt: "consent",
+    scope: ["email", "profile", "openid"]
+  });
+
+  res.redirect(url);
+};
+
+const googleAuthCallback = async (req, res) => {
+  try {
+    const code = req.query.code;
+
+    if (!code) {
+      return res.status(400).json({ message: "Code Google manquant" });
+    }
+
+    const tokenResponse = await axios.post("https://oauth2.googleapis.com/token", {
+      code,
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+      grant_type: "authorization_code"
+    });
+
+    const accessToken = tokenResponse.data.access_token;
+
+    const googleUser = await axios.get(
+      `https://www.googleapis.com/oauth2/v2/userinfo`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    const { id: googleId, email, given_name, family_name, picture } = googleUser.data;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        email,
+        googleId,
+        nom: family_name || null,
+        prenom: given_name || null,
+        pdp: picture || null,
+        isVerified: true,
+        mfaEnabled: false,
+        mdp: null,
+        role: 'student',
+        statut: 'active',
+        dateinscri: new Date()
+      });
+    }
+
+    // Si le profil est incomplet, rediriger vers la page de complétion
+    if (!user.prenom || !user.nom) {
+      return res.redirect(`/auth/complete-profile?userId=${user._id}`);
+    }
+
+    // Créer le token JWT
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // Stocker le token dans un cookie et rediriger
+    res.cookie('token', token, { 
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
+    });
+    
+    res.redirect('/auth/dashboard-construction');
+
+  } catch (err) {
+    console.error("Google Callback Error:", err.response?.data || err);
+    res.status(500).json({ message: "Erreur callback Google" });
+  }
+};
+
+
+// Login simple via idToken Google
+const googleLogin = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    const payload = await verifyGoogleToken(token);
+    if (!payload || !payload.email)
+      return res.status(400).json({ message: "Token Google invalide" });
+
+    const { email, name } = payload;
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({
+        nom: name,
+        prenom: "",
+        email,
+        googleAuth: true,
+        isVerified: true,
+        statut: "active",
+        dateinscri: new Date(),
+      });
+    }
+
+    const jwtToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({ message: "Connexion Google OK", token: jwtToken, user });
+
+  } 
+  catch (error) {
+    console.error("Google Callback Error:", error.response?.data || error);
+    res.status(500).json({ message: "Erreur Google Login", error: error.message });
+  }
+};
+
+
+const facebookLogin = async (req, res) => {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) {
+      return res.status(400).json({ message: "accessToken manquant" });
+    }
+
+    const appId = process.env.FACEBOOK_APP_ID;
+    const appSecret = process.env.FACEBOOK_APP_SECRET;
+    if (!appId || !appSecret) {
+      return res.status(500).json({ message: "Configuration Facebook manquante (FACEBOOK_APP_ID / FACEBOOK_APP_SECRET)" });
+    }
+
+    const profileRes = await axios.get('https://graph.facebook.com/me', {
+      params: {
+        fields: 'id,name,email,picture',
+        access_token: accessToken,
+      },
+    });
+
+    const profile = profileRes.data;
+    if (!profile || !profile.email) {
+      return res.status(400).json({ message: "Impossible de récupérer l'email Facebook (permission email requise)" });
+    }
+
+    const [prenom = '', ...rest] = (profile.name || '').split(' ');
+    const nom = rest.join(' ').trim() || null;
+
+    let user = await User.findOne({ $or: [{ email: profile.email.toLowerCase() }, { facebookId: profile.id }] });
+
+    if (!user) {
+      user = await User.create({
+        facebookId: profile.id,
+        email: profile.email.toLowerCase(),
+        prenom: prenom || null,
+        nom: nom || null,
+        pdp: profile.picture?.data?.url || null,
+        isVerified: true,
+        mfaEnabled: false,
+        mdp: null,
+        role: 'student',
+        statut: 'active',
+        dateinscri: new Date(),
+      });
+    } else {
+      if (!user.facebookId) {
+        user.facebookId = profile.id;
+        await user.save();
+      }
+      if (user.statut !== 'active') {
+        return res.status(403).json({ message: 'Votre compte est suspendu' });
+      }
+    }
+
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      message: 'Connexion Facebook réussie',
+      token,
+      user: formatUser(user),
+    });
+  } catch (error) {
+    console.error('Facebook login error:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Erreur Facebook Login', error: error.message });
+  }
+};
+
+const completeProfile = async (req, res) => {
+  try {
+    const { userId, nom, prenom } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: "Utilisateur introuvable" });
+
+    user.nom = nom;
+    user.prenom = prenom;
+    user.profileComplete = true;
+
+    await user.save();
+
+    // Redirection directe vers la page EJS
+    res.redirect('/auth/dashboard-construction');
+
+  } catch (error) {
+    res.status(500).json({ error: "Erreur lors de la mise à jour du profil" });
+  }
+};
+
+
+/* ============================================================
+   =================== EXPORT FINAL =============================
+   ============================================================ */
+module.exports = {
+  registerWithMFA,
+  verifyMFA,
+  resendVerificationCode,
+  register,
+  login,
+  loginWithMFA,
+  googleLogin,
+  facebookLogin,
+  googleAuthRedirect,
+  googleAuthCallback,
+  completeProfile,
+};
