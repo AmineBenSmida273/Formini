@@ -1,10 +1,9 @@
-
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 
 const SMTP_HOST = "smtp.gmail.com";
 const SMTP_PORT = 465;
 const SMTP_USER = "aminebensmida46@gmail.com";
-const SMTP_PASS = "fqycqeyobqepbqax"; 
+const SMTP_PASS = "fqycqeyobqepbqax";
 const FROM_EMAIL = "aminebensmida46@gmail.com";
 
 const createTransporter = () => {
@@ -19,17 +18,16 @@ const createTransporter = () => {
     secure: SMTP_PORT == 465,
     auth: {
       user: SMTP_USER,
-      pass: SMTP_PASS
+      pass: SMTP_PASS,
     },
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 15000,
-    tls: { rejectUnauthorized: false }
+    tls: { rejectUnauthorized: false },
   });
 };
 
 exports.sendVerificationCode = async (email, code) => {
-
   console.log("\n" + "🔐".repeat(20));
   console.log("🎯 CODE MFA POUR " + email);
   console.log("🔐 " + code);
@@ -52,11 +50,13 @@ exports.sendVerificationCode = async (email, code) => {
       from: `Formini <${FROM_EMAIL}>`,
       to: email,
       subject: "Formini - Code de Vérification MFA",
-      attachments: [{
-        filename: 'logo.png',
-        path: 'C:/Users/MSI/Desktop/Formini/frontend/src/assets/images/logo.png',
-        cid: 'formini_logo'
-      }],
+      attachments: [
+        {
+          filename: "logo.png",
+          path: "C:/Users/MSI/Desktop/Formini/frontend/src/assets/images/logo.png",
+          cid: "formini_logo",
+        },
+      ],
       html: `
         <div style="font-family: Arial; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
           <div style="text-align: center; background: #d26111ff; color: white; padding: 20px;">
@@ -78,16 +78,14 @@ exports.sendVerificationCode = async (email, code) => {
             Formini Platform
           </div>
         </div>
-      `
+      `,
     };
-
 
     const info = await transporter.sendMail(mailOptions);
     console.log("✅ Email envoyé →", email);
     console.log("📨 Message ID:", info.messageId);
 
     return true;
-
   } catch (error) {
     console.log("❌ Erreur SMTP:", error.message);
     console.log("💡 Le code a été affiché — Mode fallback OK");
@@ -115,9 +113,9 @@ exports.sendInstructorApprovalRequest = async (instructor) => {
     if (!transporter) return true;
 
     // Récupérer l'email de l'admin (premier admin trouvé)
-    const User = require('../models/user.model');
-    const admin = await User.findOne({ role: 'admin' });
-    
+    const User = require("../models/user.model");
+    const admin = await User.findOne({ role: "admin" });
+
     if (!admin) {
       console.log("⚠️ Aucun admin trouvé pour recevoir la notification");
       return false;
@@ -129,11 +127,13 @@ exports.sendInstructorApprovalRequest = async (instructor) => {
       from: `Formini <${FROM_EMAIL}>`,
       to: adminEmail,
       subject: `Formini - Nouvelle demande d'inscription formateur`,
-      attachments: [{
-        filename: 'logo.png',
-        path: 'C:/Users/MSI/Desktop/Formini/frontend/src/assets/images/logo.png',
-        cid: 'formini_logo'
-      }],
+      attachments: [
+        {
+          filename: "logo.png",
+          path: "C:/Users/MSI/Desktop/Formini/frontend/src/assets/images/logo.png",
+          cid: "formini_logo",
+        },
+      ],
       html: `
         <div style="font-family: Arial; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
           <div style="text-align: center; background: #d26111ff; color: white; padding: 20px;">
@@ -144,16 +144,25 @@ exports.sendInstructorApprovalRequest = async (instructor) => {
             <h2 style="color: #1f2937;">Demande d'inscription formateur</h2>
             <p>Un nouveau formateur a soumis une demande d'inscription :</p>
             <div style="background:#f9fafb; padding:20px; border-radius:10px; margin:20px 0;">
-              <p><strong>Nom:</strong> ${instructor.prenom} ${instructor.nom}</p>
+              <p><strong>Nom:</strong> ${instructor.prenom} ${
+        instructor.nom
+      }</p>
               <p><strong>Email:</strong> ${instructor.email}</p>
-              <p><strong>Centre de profession:</strong> ${instructor.centreProfession}</p>
-              <p><strong>Date de demande:</strong> ${new Date(instructor.dateDemande).toLocaleDateString('fr-FR')}</p>
+              <p><strong>Centre de profession:</strong> ${
+                instructor.centreProfession
+              }</p>
+              <p><strong>Date de demande:</strong> ${new Date(
+                instructor.dateDemande
+              ).toLocaleDateString("fr-FR")}</p>
             </div>
             <p style="color:#6b7280; font-size:14px;">
               Veuillez examiner la demande et approuver ou rejeter le formateur depuis le dashboard administrateur.
             </p>
             <div style="text-align:center; margin-top:30px;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" 
+              <a href="${
+                process.env.FRONTEND_URL ||
+                "https://formini-frontend.netlify.app"
+              }/dashboard" 
                  style="background:#f97316; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; display:inline-block;">
                 Voir le dashboard admin
               </a>
@@ -163,7 +172,7 @@ exports.sendInstructorApprovalRequest = async (instructor) => {
             Formini Platform
           </div>
         </div>
-      `
+      `,
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -171,7 +180,6 @@ exports.sendInstructorApprovalRequest = async (instructor) => {
     console.log("📨 Message ID:", info.messageId);
 
     return true;
-
   } catch (error) {
     console.log("❌ Erreur SMTP:", error.message);
     return false;
@@ -181,7 +189,9 @@ exports.sendInstructorApprovalRequest = async (instructor) => {
 // Envoyer email au formateur pour notification d'approbation/rejet
 exports.sendInstructorApprovalNotification = async (instructor, approved) => {
   console.log("\n" + "📧".repeat(20));
-  console.log(`📨 NOTIFICATION ${approved ? 'APPROBATION' : 'REJET'} FORMATEUR`);
+  console.log(
+    `📨 NOTIFICATION ${approved ? "APPROBATION" : "REJET"} FORMATEUR`
+  );
   console.log(`👤 Formateur: ${instructor.prenom} ${instructor.nom}`);
   console.log(`📧 Email: ${instructor.email}`);
   console.log("📧".repeat(20) + "\n");
@@ -198,39 +208,60 @@ exports.sendInstructorApprovalNotification = async (instructor, approved) => {
     const mailOptions = {
       from: `Formini <${FROM_EMAIL}>`,
       to: instructor.email,
-      subject: `Formini - ${approved ? 'Demande approuvée' : 'Demande rejetée'}`,
-      attachments: [{
-        filename: 'logo.png',
-        path: 'C:/Users/MSI/Desktop/Formini/frontend/src/assets/images/logo.png',
-        cid: 'formini_logo'
-      }],
+      subject: `Formini - ${
+        approved ? "Demande approuvée" : "Demande rejetée"
+      }`,
+      attachments: [
+        {
+          filename: "logo.png",
+          path: "C:/Users/MSI/Desktop/Formini/frontend/src/assets/images/logo.png",
+          cid: "formini_logo",
+        },
+      ],
       html: `
         <div style="font-family: Arial; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
-          <div style="text-align: center; background: ${approved ? '#10b981' : '#ef4444'}; color: white; padding: 20px;">
+          <div style="text-align: center; background: ${
+            approved ? "#10b981" : "#ef4444"
+          }; color: white; padding: 20px;">
             <img src="cid:formini_logo" alt="Formini" style="width:120px;" />
-            <p style="margin:5px 0 0 0;">${approved ? 'Demande approuvée' : 'Demande rejetée'}</p>
+            <p style="margin:5px 0 0 0;">${
+              approved ? "Demande approuvée" : "Demande rejetée"
+            }</p>
           </div>
           <div style="padding: 30px;">
-            <h2 style="color: #1f2937;">${approved ? '✅ Votre demande a été approuvée' : '❌ Votre demande a été rejetée'}</h2>
+            <h2 style="color: #1f2937;">${
+              approved
+                ? "✅ Votre demande a été approuvée"
+                : "❌ Votre demande a été rejetée"
+            }</h2>
             <p>Bonjour ${instructor.prenom},</p>
-            <p>${approved 
-              ? 'Félicitations ! Votre demande d\'inscription en tant que formateur a été approuvée par l\'administrateur. Vous pouvez maintenant vous connecter et commencer à créer des cours.'
-              : 'Nous sommes désolés, mais votre demande d\'inscription en tant que formateur a été rejetée. Pour plus d\'informations, veuillez contacter l\'administrateur.'}
+            <p>${
+              approved
+                ? "Félicitations ! Votre demande d'inscription en tant que formateur a été approuvée par l'administrateur. Vous pouvez maintenant vous connecter et commencer à créer des cours."
+                : "Nous sommes désolés, mais votre demande d'inscription en tant que formateur a été rejetée. Pour plus d'informations, veuillez contacter l'administrateur."
+            }
             </p>
-            ${approved ? `
+            ${
+              approved
+                ? `
               <div style="text-align:center; margin-top:30px;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/login" 
+                <a href="${
+                  process.env.FRONTEND_URL ||
+                  "https://formini-frontend.netlify.app"
+                }/login" 
                    style="background:#f97316; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; display:inline-block;">
                   Se connecter
                 </a>
               </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
           <div style="text-align:center; padding:20px; border-top:1px solid #ddd; color:#999; font-size:12px;">
             Formini Platform
           </div>
         </div>
-      `
+      `,
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -238,7 +269,6 @@ exports.sendInstructorApprovalNotification = async (instructor, approved) => {
     console.log("📨 Message ID:", info.messageId);
 
     return true;
-
   } catch (error) {
     console.log("❌ Erreur SMTP:", error.message);
     return false;

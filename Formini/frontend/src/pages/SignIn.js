@@ -29,10 +29,11 @@ export default function SignIn() {
         email: formData.email,
         mdp: formData.mdp,
       });
-      localStorage.setItem('pendingVerificationEmail', formData.email);
-      navigate('/verify-mfa', { state: { email: formData.email, flow: 'login' } });
+      localStorage.setItem("pendingVerificationEmail", formData.email);
+      navigate("/verify-mfa", {
+        state: { email: formData.email, flow: "login" },
+      });
       alert("✅ Code MFA envoyé. Vérifiez votre email.");
-      
     } catch (err) {
       alert("❌ Erreur : " + (err.response?.data?.message || err.message));
     } finally {
@@ -43,14 +44,12 @@ export default function SignIn() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-
         {/* ---- LEFT FORM ---- */}
         <div style={styles.left}>
           <h1 style={styles.title}>Welcome back</h1>
           <p style={styles.subtitle}>Continue your learning journey 🚀</p>
 
           <form onSubmit={handleSubmit} style={styles.form}>
-
             {/* EMAIL */}
             <div style={styles.inputGroup}>
               <input
@@ -93,16 +92,16 @@ export default function SignIn() {
                   Remember me
                 </span>
               </div>
-              
+
               <a href="/forgot-password" style={styles.forgotLink}>
                 Forgot password?
               </a>
             </div>
 
-            <button 
+            <button
               style={{
                 ...styles.button,
-                ...(loading && styles.buttonLoading)
+                ...(loading && styles.buttonLoading),
               }}
               disabled={loading}
             >
@@ -115,19 +114,22 @@ export default function SignIn() {
             <div style={styles.divider}>
               <span style={styles.dividerText}>Or continue with</span>
             </div>
-            
+
             <div style={styles.socialButtons}>
-              <button 
+              <button
                 style={styles.socialButton}
                 onClick={() => alert("Facebook login - À implémenter")}
               >
                 <span style={styles.socialIcon}>🔵</span>
                 Facebook
               </button>
-              <button 
+              <button
                 style={styles.socialButton}
                 onClick={() => {
-                  window.location.href = "http://localhost:5000/api/auth/google";
+                  window.location.href =
+                    "http://localhost:5000/api/auth/google";
+                  window.location.href =
+                    "http://localhost:5000/api/auth/google";
                 }}
               >
                 <span style={styles.socialIcon}>🔴</span>
@@ -139,7 +141,7 @@ export default function SignIn() {
           <p style={styles.footer}>
             Don't have an account ?{" "}
             <Link to="/register" style={styles.link2}>
-                Sign up
+              Sign up
             </Link>
           </p>
         </div>
@@ -148,7 +150,6 @@ export default function SignIn() {
         <div style={styles.right}>
           <img src={signinImage} alt="signin" style={styles.image} />
         </div>
-
       </div>
     </div>
   );
@@ -331,7 +332,7 @@ const styles = {
 };
 
 // Effets hover
-const styleElement = document.createElement('style');
+const styleElement = document.createElement("style");
 styleElement.textContent = `
   .input-group:hover {
     border-color: #4f46e5;
