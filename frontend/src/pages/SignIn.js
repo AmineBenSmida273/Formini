@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { authService } from "../services/api";
 import { Link, useNavigate } from "react-router-dom";
 import signinImage from "../assets/images/SignIn.png";
@@ -11,25 +11,6 @@ export default function SignIn() {
     rememberMe: false,
   });
   const [loading, setLoading] = useState(false);
-  const [fbLoading, setFbLoading] = useState(false);
-
-  useEffect(() => {
-    // Charger le SDK Facebook si absent
-    if (window.FB) return;
-    const script = document.createElement("script");
-    script.src = "https://connect.facebook.net/fr_FR/sdk.js";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      window.FB.init({
-        appId: process.env.REACT_APP_FACEBOOK_APP_ID || "YOUR_FB_APP_ID",
-        cookie: true,
-        xfbml: true,
-        version: "v19.0",
-      });
-    };
-    document.body.appendChild(script);
-  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -83,38 +64,6 @@ export default function SignIn() {
     }
   };
 
-  const handleFacebookLogin = () => {
-    if (!window.FB) {
-      alert("Facebook SDK non chargé");
-      return;
-    }
-    setFbLoading(true);
-    window.FB.login(
-      async (response) => {
-        try {
-          if (response.status !== "connected") {
-            setFbLoading(false);
-            return;
-          }
-          const accessToken = response.authResponse.accessToken;
-          const res = await authService.facebookLogin(accessToken);
-          const { token, user } = res.data;
-          if (token && user) {
-            localStorage.setItem("token", token);
-            localStorage.setItem("user", JSON.stringify(user));
-            navigate("/dashboard");
-          } else {
-            alert("❌ Réponse inattendue du serveur Facebook");
-          }
-        } catch (err) {
-          alert("❌ Erreur Facebook : " + (err.response?.data?.message || err.message));
-        } finally {
-          setFbLoading(false);
-        }
-      },
-      { scope: "email" }
-    );
-  };
 
   return (
     <div style={styles.page}>
@@ -195,20 +144,12 @@ export default function SignIn() {
             <div style={styles.socialButtons}>
               <button 
                 style={styles.socialButton}
-                onClick={handleFacebookLogin}
-                disabled={fbLoading}
-              >
-                <span style={styles.socialIcon}>🔵</span>
-                {fbLoading ? "Connexion..." : "Facebook"}
-              </button>
-              <button 
-                style={styles.socialButton}
                 onClick={() => {
                   window.location.href = "http://localhost:5000/api/auth/google";
                 }}
               >
                 <span style={styles.socialIcon}>🔴</span>
-                Google
+                Se connecter avec Google
               </button>
             </div>
           </div>

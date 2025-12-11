@@ -41,7 +41,7 @@ export const authService = {
   // Anciennes routes (à garder pour compatibilité)
   register: (userData) => api.post('/users/register', userData),
   login: (credentials) => api.post('/auth/login', credentials), // Route pour admin sans MFA
-  
+
   // NOUVELLES ROUTES MFA
   registerWithMFA: (userData) => {
     // Si FormData (avec fichier), ne pas utiliser JSON
@@ -58,7 +58,7 @@ export const authService = {
   resendVerificationCode: (data) => api.post('/auth/resend-verification', data),
   loginWithMFA: (credentials) => api.post('/auth/login-mfa', credentials),
   facebookLogin: (accessToken) => api.post('/auth/facebook-login', { accessToken }),
-  
+
   // Fonction utilitaire pour vérifier si l'utilisateur est connecté
   checkAuth: () => {
     const token = localStorage.getItem('token');
@@ -68,7 +68,7 @@ export const authService = {
       user: user ? JSON.parse(user) : null
     };
   },
-  
+
   // Déconnexion
   logout: () => {
     localStorage.removeItem('token');
@@ -86,11 +86,12 @@ export const userService = {
 
 // Service cours (pour plus tard)
 export const courseService = {
-  getAllCourses: () => api.get('/courses'),
+  getAllCourses: (params) => api.get('/courses', { params }),
   getCourse: (id) => api.get(`/courses/${id}`),
   createCourse: (courseData) => api.post('/courses', courseData),
   updateCourse: (id, courseData) => api.put(`/courses/${id}`, courseData),
   deleteCourse: (id) => api.delete(`/courses/${id}`),
+  getMyCourses: () => api.get('/courses/instructor/my-courses'),
 };
 
 // Service dashboard
@@ -102,6 +103,8 @@ export const dashboardService = {
 
 // Service admin
 export const adminService = {
+  getUserDetails: (userId) => api.get(`/users/admin/user/${userId}`),
+  getAllUsers: () => api.get('/users/admin/all-users'),
   getPendingInstructors: () => api.get('/users/admin/pending-instructors'),
   approveInstructor: (instructorId) => api.post(`/users/admin/approve-instructor/${instructorId}`),
   rejectInstructor: (instructorId) => api.post(`/users/admin/reject-instructor/${instructorId}`),

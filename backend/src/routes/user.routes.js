@@ -20,8 +20,10 @@ router.get('/dashboard/instructor', verifyToken, verifyRole('instructor'), userC
 // Routes admin pour gérer les formateurs
 router.get('/admin/pending-instructors', verifyToken, verifyRole('admin'), adminController.getPendingInstructors);
 router.post('/admin/approve-instructor/:instructorId', verifyToken, verifyRole('admin'), adminController.approveInstructor);
+router.get('/admin/all-users', verifyToken, verifyRole('admin'), adminController.getAllUsers);
 router.post('/admin/reject-instructor/:instructorId', verifyToken, verifyRole('admin'), adminController.rejectInstructor);
 router.get('/admin/instructor/:instructorId/cv', verifyToken, verifyRole('admin'), adminController.downloadCV);
+router.get('/admin/user/:userId', verifyToken, verifyRole('admin'), adminController.getUserDetails);
 router.put('/admin/user/:userId/status', verifyToken, verifyRole('admin'), adminController.toggleUserStatus);
 
 module.exports = router;

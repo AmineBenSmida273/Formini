@@ -17,8 +17,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true, // autorise unique mais null possible
-    trim: true,
-    default: null
+    trim: true
   },
 
   email: {
@@ -41,15 +40,13 @@ const userSchema = new mongoose.Schema({
   googleId: {
     type: String,
     unique: true,
-    sparse: true,
-    default: null
+    sparse: true
   },
 
   facebookId: {
     type: String,
     unique: true,
-    sparse: true,
-    default: null
+    sparse: true
   },
 
   role: {

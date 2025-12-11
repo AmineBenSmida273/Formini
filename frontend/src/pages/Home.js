@@ -1,8 +1,34 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/images/logo.png';
 
 const Home = () => {
+  const navigate = useNavigate();
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [currentCourse, setCurrentCourse] = useState(null);
+
+  const handleEnrollClick = (courseName) => {
+    setCurrentCourse(courseName);
+    setIsEnrolling(true);
+    
+    // Simuler un appel API
+    setTimeout(() => {
+      alert(`Vous êtes maintenant inscrit au cours de ${courseName} !`);
+      setIsEnrolling(false);
+      // Rediriger vers le tableau de bord étudiant
+      navigate('/student/dashboard');
+    }, 1000);
+  };
+
+  const handleExploreCourses = () => {
+    // Faire défiler jusqu'à la section des cours
+    const coursesSection = document.getElementById('courses');
+    if (coursesSection) {
+      coursesSection.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      navigate('/courses');
+    }
+  };
   return (
     <div style={styles.container}>
       
@@ -34,7 +60,10 @@ const Home = () => {
               <Link to="/register" style={styles.ctaButton}>
                 Join For Free
               </Link>
-              <button style={styles.secondaryButton}>
+              <button 
+                style={styles.secondaryButton}
+                onClick={handleExploreCourses}
+              >
                 Explore Courses
               </button>
             </div>
@@ -120,7 +149,13 @@ const Home = () => {
                 <span style={styles.courseInfo}>📚 45 Lessons</span>
                 <span style={styles.courseInfo}>⏱️ 20 Hours</span>
               </div>
-              <button style={styles.courseButton}>Enroll Now</button>
+              <button 
+                style={styles.courseButton}
+                onClick={() => handleEnrollClick('Web Development')}
+                disabled={isEnrolling && currentCourse === 'Web Development'}
+              >
+                {isEnrolling && currentCourse === 'Web Development' ? 'Inscription...' : 'Enroll Now'}
+              </button>
             </div>
           </div>
           
@@ -137,7 +172,13 @@ const Home = () => {
                 <span style={styles.courseInfo}>📚 60 Lessons</span>
                 <span style={styles.courseInfo}>⏱️ 30 Hours</span>
               </div>
-              <button style={styles.courseButton}>Enroll Now</button>
+              <button 
+                style={styles.courseButton}
+                onClick={() => handleEnrollClick('Data Science')}
+                disabled={isEnrolling && currentCourse === 'Data Science'}
+              >
+                {isEnrolling && currentCourse === 'Data Science' ? 'Inscription...' : 'Enroll Now'}
+              </button>
             </div>
           </div>
           
@@ -154,7 +195,13 @@ const Home = () => {
                 <span style={styles.courseInfo}>📚 35 Lessons</span>
                 <span style={styles.courseInfo}>⏱️ 25 Hours</span>
               </div>
-              <button style={styles.courseButton}>Enroll Now</button>
+              <button 
+                style={styles.courseButton}
+                onClick={() => handleEnrollClick('UI/UX Design')}
+                disabled={isEnrolling && currentCourse === 'UI/UX Design'}
+              >
+                {isEnrolling && currentCourse === 'UI/UX Design' ? 'Inscription...' : 'Enroll Now'}
+              </button>
             </div>
           </div>
         </div>
@@ -167,7 +214,15 @@ const Home = () => {
           <p style={styles.ctaText}>
             Join thousands of students already learning on Formini
           </p>
-          <Link to="/register" style={styles.ctaButtonLarge}>
+          <Link 
+            to="/register" 
+            style={styles.ctaButtonLarge}
+            className="cta-button"
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            onMouseDown={(e) => e.currentTarget.style.transform = 'translateY(1px)'}
+            onMouseUp={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          >
             Get Started Today
           </Link>
         </div>

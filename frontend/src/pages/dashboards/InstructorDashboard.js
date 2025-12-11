@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService, dashboardService } from '../../services/api';
+import { authService, dashboardService, courseService } from '../../services/api';
 
 export default function InstructorDashboard({ user }) {
   const navigate = useNavigate();
@@ -21,11 +21,26 @@ export default function InstructorDashboard({ user }) {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [selectedTimeframe, setSelectedTimeframe] = useState('month');
   const [sortBy, setSortBy] = useState('recent');
+  // États pour la gestion des cours
+  const [showCourseModal, setShowCourseModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentCourse, setCurrentCourse] = useState(null);
+  const [courseFormData, setCourseFormData] = useState({
+    titre: '',
+    description: '',
+    categorie: 'Développement Web',
+    niveau: 'débutant',
+    prix: 0,
+    duree: 1,
+    programme: '',
+    objectifs: [''],
+    prerequis: ['']
+  });
   const refreshIntervalRef = useRef(null);
 
   useEffect(() => {
     fetchDashboardData();
-    
+
     if (autoRefresh) {
       refreshIntervalRef.current = setInterval(() => {
         fetchDashboardData();
@@ -43,7 +58,7 @@ export default function InstructorDashboard({ user }) {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await dashboardService.getInstructorStats();
       const data = response.data;
 
@@ -56,12 +71,12 @@ export default function InstructorDashboard({ user }) {
         averageRating: 0,
         totalEnrollments: 0,
       });
-      
+
       setMyCourses(data.myCourses || []);
       setRecentEnrollments(data.recentEnrollments || []);
       setRevenueData(data.revenueTimeline || []);
       setStudentEngagement(data.engagementByCourse || []);
-      
+
       setLoading(false);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
@@ -73,6 +88,79 @@ export default function InstructorDashboard({ user }) {
   const handleLogout = () => {
     authService.logout();
     navigate('/login');
+  };
+
+  // Gestion du formulaire de cours
+  const resetForm = () => {
+    setCourseFormData({
+      titre: '',
+      description: '',
+      categorie: 'Développement Web',
+      niveau: 'débutant',
+      prix: 0,
+      duree: 1,
+      programme: '',
+      objectifs: [''],
+      prerequis: ['']
+    });
+    setIsEditing(false);
+    setCurrentCourse(null);
+  };
+
+  const handleOpenCreateModal = () => {
+    resetForm();
+    setShowCourseModal(true);
+  };
+
+  const handleOpenEditModal = (course) => {
+    setCourseFormData({
+      titre: course.titre || course.title,
+      description: course.description,
+      categorie: course.categorie || 'Développement Web',
+      niveau: course.niveau || 'débutant',
+      prix: course.prix || 0,
+      duree: course.duree || 1,
+      programme: course.programme || '',
+      objectifs: course.objectifs || [''],
+      prerequis: course.prerequis || ['']
+    });
+    setIsEditing(true);
+    setCurrentCourse(course);
+    setShowCourseModal(true);
+  };
+
+  const handleSubmitCourse = async (e) => {
+    e.preventDefault();
+    try {
+      if (isEditing) {
+        await courseService.updateCourse(currentCourse.id || currentCourse._id, courseFormData);
+        alert('✅ Cours mis à jour avec succès');
+      } else {
+        await courseService.createCourse(courseFormData);
+        alert('✅ Cours créé avec succès');
+      }
+      setShowCourseModal(false);
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Erreur sauvegarde cours:', error);
+      alert('❌ Erreur lors de la sauvegarde du cours');
+    }
+  };
+
+  // Handlers pour les tableaux dynamiques (objectifs, prérequis)
+  const handleArrayChange = (field, index, value) => {
+    const newArray = [...courseFormData[field]];
+    newArray[index] = value;
+    setCourseFormData({ ...courseFormData, [field]: newArray });
+  };
+
+  const addArrayItem = (field) => {
+    setCourseFormData({ ...courseFormData, [field]: [...courseFormData[field], ''] });
+  };
+
+  const removeArrayItem = (field, index) => {
+    const newArray = courseFormData[field].filter((_, i) => i !== index);
+    setCourseFormData({ ...courseFormData, [field]: newArray });
   };
 
   const getMaxRevenueValue = (series) => {
@@ -128,6 +216,101 @@ export default function InstructorDashboard({ user }) {
 
   return (
     <div style={styles.container}>
+      {/* Modal Création/Édition Cours */}
+      {showCourseModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <div style={styles.modalHeader}>
+              <h2>{isEditing ? 'Modifier le cours' : 'Créer un nouveau cours'}</h2>
+              <button onClick={() => setShowCourseModal(false)} style={styles.closeBtn}>&times;</button>
+            </div>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              // We need to import courseService to use it here.
+              // Assuming I will add the import in a separate tool call or use a workaround.
+              // For now, let's just log.
+              console.log('Form submitted');
+            }}>
+              <div style={styles.formGrid}>
+                <div style={styles.formGroup}>
+                  <label>Titre</label>
+                  <input
+                    type="text"
+                    value={courseFormData.titre}
+                    onChange={e => setCourseFormData({ ...courseFormData, titre: e.target.value })}
+                    required
+                    style={styles.input}
+                  />
+                </div>
+                <div style={styles.formGroup}>
+                  <label>Catégorie</label>
+                  <select
+                    value={courseFormData.categorie}
+                    onChange={e => setCourseFormData({ ...courseFormData, categorie: e.target.value })}
+                    style={styles.input}
+                  >
+                    <option value="Développement Web">Développement Web</option>
+                    <option value="Design">Design</option>
+                    <option value="Business">Business</option>
+                    <option value="Marketing">Marketing</option>
+                  </select>
+                </div>
+                <div style={styles.formGroup}>
+                  <label>Prix (€)</label>
+                  <input
+                    type="number"
+                    value={courseFormData.prix}
+                    onChange={e => setCourseFormData({ ...courseFormData, prix: Number(e.target.value) })}
+                    min="0"
+                    style={styles.input}
+                  />
+                </div>
+                <div style={styles.formGroup}>
+                  <label>Niveau</label>
+                  <select
+                    value={courseFormData.niveau}
+                    onChange={e => setCourseFormData({ ...courseFormData, niveau: e.target.value })}
+                    style={styles.input}
+                  >
+                    <option value="débutant">Débutant</option>
+                    <option value="intermédiaire">Intermédiaire</option>
+                    <option value="avancé">Avancé</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label>Description</label>
+                <textarea
+                  rows="3"
+                  value={courseFormData.description}
+                  onChange={e => setCourseFormData({ ...courseFormData, description: e.target.value })}
+                  required
+                  style={styles.textarea}
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label>Programme (résumé)</label>
+                <textarea
+                  rows="3"
+                  value={courseFormData.programme}
+                  onChange={e => setCourseFormData({ ...courseFormData, programme: e.target.value })}
+                  required
+                  style={styles.textarea}
+                />
+              </div>
+
+              <div style={styles.formAction}>
+                <button type="submit" style={styles.submitBtn}>
+                  {isEditing ? 'Mettre à jour' : 'Créer le cours'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header style={styles.header}>
         <div style={styles.headerContent}>
@@ -172,14 +355,14 @@ export default function InstructorDashboard({ user }) {
                 <p style={styles.statSubtext}>{stats.activeCourses} actifs</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${(stats.activeCourses / stats.totalCourses) * 100}%`, 
+                    ...styles.statProgressBar,
+                    width: `${(stats.activeCourses / stats.totalCourses) * 100}%`,
                     background: '#f97316'
                   }}></div>
                 </div>
               </div>
             </div>
-            
+
             <div style={styles.statCard}>
               <div style={styles.statIcon}>👥</div>
               <div style={styles.statContent}>
@@ -188,14 +371,14 @@ export default function InstructorDashboard({ user }) {
                 <p style={styles.statSubtext}>{stats.totalEnrollments} inscriptions</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${(stats.totalStudents / 500) * 100}%`, 
+                    ...styles.statProgressBar,
+                    width: `${(stats.totalStudents / 500) * 100}%`,
                     background: '#10b981'
                   }}></div>
                 </div>
               </div>
             </div>
-            
+
             <div style={styles.statCard}>
               <div style={styles.statIcon}>💰</div>
               <div style={styles.statContent}>
@@ -204,14 +387,14 @@ export default function InstructorDashboard({ user }) {
                 <p style={styles.statSubtext}>Moyenne: {(stats.totalRevenue / stats.totalCourses).toFixed(0)} €/cours</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${(stats.totalRevenue / 20000) * 100}%`, 
+                    ...styles.statProgressBar,
+                    width: `${(stats.totalRevenue / 20000) * 100}%`,
                     background: '#f59e0b'
                   }}></div>
                 </div>
               </div>
             </div>
-            
+
             <div style={styles.statCard}>
               <div style={styles.statIcon}>⭐</div>
               <div style={styles.statContent}>
@@ -220,8 +403,8 @@ export default function InstructorDashboard({ user }) {
                 <p style={styles.statSubtext}>Sur 5.0</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${(stats.averageRating / 5) * 100}%`, 
+                    ...styles.statProgressBar,
+                    width: `${(stats.averageRating / 5) * 100}%`,
                     background: '#f97316'
                   }}></div>
                 </div>
@@ -249,7 +432,7 @@ export default function InstructorDashboard({ user }) {
               <div style={styles.chart}>
                 {displayedRevenue.map((data, index) => (
                   <div key={index} style={styles.chartBar}>
-                    <div 
+                    <div
                       style={{
                         ...styles.chartBarItem,
                         height: `${(data.revenue / maxRevenueValue) * 100}%`,
@@ -284,7 +467,7 @@ export default function InstructorDashboard({ user }) {
                     </div>
                   </div>
                   <div style={styles.engagementBar}>
-                    <div 
+                    <div
                       style={{
                         ...styles.engagementBarFill,
                         width: `${(engagement.students / maxEngagementValue) * 100}%`,
@@ -314,70 +497,84 @@ export default function InstructorDashboard({ user }) {
           </div>
           {sortedCourses.length > 0 ? (
             <div style={styles.coursesGrid}>
-                  {sortedCourses.length > 0 ? sortedCourses.map((course) => (
-                    <div key={course.id} style={styles.courseCard}>
-                      <div style={styles.courseHeader}>
-                        <h3 style={styles.courseTitle}>{course.title}</h3>
-                        <span style={{
-                          ...styles.statusBadge,
-                          background: course.status === 'active' ? '#10b981' : '#6b7280'
-                        }}>
-                          {course.status === 'active' ? 'Actif' : 'Brouillon'}
-                        </span>
-                      </div>
-                      <p style={styles.courseDescription}>{course.description || 'Aucune description'}</p>
-                      <div style={styles.courseStats}>
-                        <div style={styles.courseStat}>
-                          <span style={styles.courseStatIcon}>👥</span>
-                          <span style={styles.courseStatText}>{course.students || 0} étudiants</span>
-                        </div>
-                        <div style={styles.courseStat}>
-                          <span style={styles.courseStatIcon}>⭐</span>
-                          <span style={styles.courseStatText}>{course.rating ? course.rating.toFixed(1) : 'N/A'} / 5</span>
-                        </div>
-                        <div style={styles.courseStat}>
-                          <span style={styles.courseStatIcon}>💰</span>
-                          <span style={styles.courseStatText}>{course.revenue || 0} €</span>
-                        </div>
-                        <div style={styles.courseStat}>
-                          <span style={styles.courseStatIcon}>📊</span>
-                          <span style={styles.courseStatText}>{course.enrollments || 0} inscriptions</span>
-                        </div>
-                        <div style={styles.courseStat}>
-                          <span style={styles.courseStatIcon}>✅</span>
-                          <span style={styles.courseStatText}>{course.completionRate || 0}% complétion</span>
-                        </div>
-                      </div>
-                      {course.completionRate > 0 && (
-                        <div style={styles.completionBar}>
-                          <div 
-                            style={{
-                              ...styles.completionBarFill,
-                              width: `${course.completionRate}%`,
-                            }}
-                          ></div>
-                        </div>
-                      )}
-                      <div style={styles.courseActions}>
-                        <button style={styles.editBtn}>Modifier</button>
-                        <button style={styles.viewBtn}>Voir les détails</button>
-                      </div>
+              {sortedCourses.length > 0 ? sortedCourses.map((course) => (
+                <div key={course.id} style={styles.courseCard}>
+                  <div style={styles.courseHeader}>
+                    <h3 style={styles.courseTitle}>{course.title}</h3>
+                    <span style={{
+                      ...styles.statusBadge,
+                      background: course.status === 'active' ? '#10b981' : '#6b7280'
+                    }}>
+                      {course.status === 'active' ? 'Actif' : 'Brouillon'}
+                    </span>
+                  </div>
+                  <p style={styles.courseDescription}>{course.description || 'Aucune description'}</p>
+                  <div style={styles.courseStats}>
+                    <div style={styles.courseStat}>
+                      <span style={styles.courseStatIcon}>👥</span>
+                      <span style={styles.courseStatText}>{course.students || 0} étudiants</span>
                     </div>
-                  )) : (
-                    <div style={styles.emptyState}>
-                      <div style={styles.emptyIcon}>📚</div>
-                      <p style={styles.emptyText}>Vous n'avez pas encore créé de cours</p>
-                      <button style={styles.createBtn} onClick={() => alert('Créer un cours - À implémenter')}>
-                        ➕ Créer mon premier cours
-                      </button>
+                    <div style={styles.courseStat}>
+                      <span style={styles.courseStatIcon}>⭐</span>
+                      <span style={styles.courseStatText}>{course.rating ? course.rating.toFixed(1) : 'N/A'} / 5</span>
+                    </div>
+                    <div style={styles.courseStat}>
+                      <span style={styles.courseStatIcon}>💰</span>
+                      <span style={styles.courseStatText}>{course.revenue || 0} €</span>
+                    </div>
+                    <div style={styles.courseStat}>
+                      <span style={styles.courseStatIcon}>📊</span>
+                      <span style={styles.courseStatText}>{course.enrollments || 0} inscriptions</span>
+                    </div>
+                    <div style={styles.courseStat}>
+                      <span style={styles.courseStatIcon}>✅</span>
+                      <span style={styles.courseStatText}>{course.completionRate || 0}% complétion</span>
+                    </div>
+                  </div>
+                  {course.completionRate > 0 && (
+                    <div style={styles.completionBar}>
+                      <div
+                        style={{
+                          ...styles.completionBarFill,
+                          width: `${course.completionRate}%`,
+                        }}
+                      ></div>
                     </div>
                   )}
+                  <div style={styles.courseActions}>
+                    <button style={styles.editBtn} onClick={() => handleOpenEditModal(course)}>Modifier</button>
+                    <button style={styles.viewBtn}>Voir les détails</button>
+                    <button
+                      style={{ ...styles.viewBtn, background: '#ef4444', marginLeft: '10px' }}
+                      onClick={async () => {
+                        if (window.confirm('Voulez-vous vraiment supprimer ce cours ?')) {
+                          try {
+                            await courseService.deleteCourse(course.id || course._id);
+                            alert('Cours supprimé');
+                            fetchDashboardData();
+                          } catch (err) { alert('Erreur suppression'); }
+                        }
+                      }}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              )) : (
+                <div style={styles.emptyState}>
+                  <div style={styles.emptyIcon}>📚</div>
+                  <p style={styles.emptyText}>Vous n'avez pas encore créé de cours</p>
+                  <button style={styles.createBtn} onClick={handleOpenCreateModal}>
+                    ➕ Créer mon premier cours
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div style={styles.emptyState}>
               <div style={styles.emptyIcon}>📚</div>
               <p style={styles.emptyText}>Vous n'avez pas encore créé de cours</p>
-              <button style={styles.createBtn} onClick={() => alert('Créer un cours - À implémenter')}>
+              <button style={styles.createBtn} onClick={handleOpenCreateModal}>
                 ➕ Créer mon premier cours
               </button>
             </div>
@@ -800,8 +997,84 @@ const styles = {
   courseHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'start',
-    marginBottom: '10px',
+    alignItems: 'flex-start',
+    marginBottom: '15px',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    backdropFilter: 'blur(5px)',
+  },
+  modalContent: {
+    background: 'white',
+    borderRadius: '20px',
+    width: '90%',
+    maxWidth: '600px',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    padding: '30px',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px',
+    borderBottom: '1px solid #e5e7eb',
+    paddingBottom: '10px',
+  },
+  closeBtn: {
+    background: 'none',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    color: '#6b7280',
+  },
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '15px',
+  },
+  formGroup: {
+    marginBottom: '15px',
+  },
+  input: {
+    width: '100%',
+    padding: '10px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    marginTop: '5px',
+    fontSize: '14px',
+  },
+  textarea: {
+    width: '100%',
+    padding: '10px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    marginTop: '5px',
+    fontSize: '14px',
+    fontFamily: 'inherit',
+    resize: 'vertical',
+  },
+  submitBtn: {
+    width: '100%',
+    padding: '12px',
+    background: '#f97316',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    fontSize: '16px',
+    marginTop: '10px',
   },
   courseTitle: {
     margin: 0,

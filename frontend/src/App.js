@@ -6,6 +6,8 @@ import SignIn from './pages/SignIn';
 import MFAVerification from './pages/MFAVerification';
 import GoogleSuccess from './pages/GoogleSuccess';
 import Dashboard from './pages/Dashboard';
+import CourseCatalog from './pages/courses/CourseCatalog';
+import CourseDetails from './pages/courses/CourseDetails';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -18,33 +20,33 @@ function App() {
         <Route path="/login" element={<SignIn />} />
         <Route path="/verify-mfa" element={<MFAVerification />} />
         <Route path="/google-success" element={<GoogleSuccess />} />
-        
+
         {/* Routes protégées */}
-        <Route 
-          path="/dashboard" 
+        <Route
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/profile" 
+        <Route
+          path="/profile"
           element={
             <ProtectedRoute>
               <div>Profil à créer</div>
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="/courses" 
+        <Route
+          path="/courses"
           element={
             <ProtectedRoute>
               <div>Cours à créer</div>
             </ProtectedRoute>
-          } 
+          }
         />
-        
+
         {/* Route 404 */}
         <Route path="*" element={<div style={styles.notFound}>
           <h1>404 - Page non trouvée</h1>

@@ -28,11 +28,13 @@ export default function AdminDashboard({ user }) {
   const [enrollmentTrends, setEnrollmentTrends] = useState([]);
   const [roleDistribution, setRoleDistribution] = useState([]);
   const [categoryDistribution, setCategoryDistribution] = useState([]);
+  const [selectedUserDetails, setSelectedUserDetails] = useState(null);
+  const [showModal, setShowModal] = useState(false);
   const refreshIntervalRef = useRef(null);
 
   useEffect(() => {
     fetchDashboardData();
-    
+
     if (autoRefresh) {
       refreshIntervalRef.current = setInterval(() => {
         fetchDashboardData();
@@ -54,9 +56,13 @@ export default function AdminDashboard({ user }) {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await dashboardService.getAdminStats();
+
+      const [response, usersResponse] = await Promise.all([
+        dashboardService.getAdminStats(),
+        adminService.getAllUsers()
+      ]);
       const data = response.data;
+      const allUsersData = usersResponse.data;
 
       setStats(data.stats || {
         totalUsers: 0,
@@ -66,9 +72,9 @@ export default function AdminDashboard({ user }) {
         activeUsers: 0,
         suspendedUsers: 0,
       });
-      
+
       setRecentUsers(data.recentUsers || []);
-      setAllUsers(data.recentUsers || []);
+      setAllUsers(allUsersData || []);
       setPendingInstructors(data.pendingInstructors || []);
       setUserTrends(data.userTrends || []);
       setCourseTrends(data.courseTrends || []);
@@ -89,7 +95,7 @@ export default function AdminDashboard({ user }) {
     let filtered = [...allUsers];
 
     if (searchTerm) {
-      filtered = filtered.filter(user => 
+      filtered = filtered.filter(user =>
         `${user.prenom} ${user.nom}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -164,6 +170,22 @@ export default function AdminDashboard({ user }) {
     }
   };
 
+  const handleViewDetails = async (userId) => {
+    try {
+      const response = await adminService.getUserDetails(userId);
+      setSelectedUserDetails(response.data);
+      setShowModal(true);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des détails:', error);
+      alert('❌ Impossible de charger les détails de l\'utilisateur');
+    }
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedUserDetails(null);
+  };
+
   const getRolePercentage = (roleCount, total) => {
     return total > 0 ? ((roleCount / total) * 100).toFixed(1) : 0;
   };
@@ -203,8 +225,140 @@ export default function AdminDashboard({ user }) {
   const maxEnrollmentValue = getMaxValue(enrollmentTrends, ['enrollments']);
   const maxCourseTrendValue = getMaxValue(courseTrends, ['courses']);
 
+
+
   return (
     <div style={styles.container}>
+      {/* Modal Détails Utilisateur */}
+      {showModal && selectedUserDetails && (
+        <div style={styles.modalOverlay} onClick={closeModal}>
+          <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>
+                Détails de {selectedUserDetails.user.prenom} {selectedUserDetails.user.nom}
+              </h2>
+              <button style={styles.closeBtn} onClick={closeModal}>&times;</button>
+            </div>
+
+            <div style={styles.modalBody}>
+              <div style={styles.userInfoGrid}>
+                <div style={styles.infoCard}>
+                  <p style={styles.infoLabel}>Email</p>
+                  <p style={styles.infoValue}>{selectedUserDetails.user.email}</p>
+                </div>
+                <div style={styles.infoCard}>
+                  <p style={styles.infoLabel}>Role</p>
+                  <p style={styles.infoValue}>
+                    {selectedUserDetails.user.role === 'student' ? '🎓 Étudiant' :
+                      selectedUserDetails.user.role === 'instructor' ? '👨‍🏫 Formateur' : '⚙️ Admin'}
+                  </p>
+                </div>
+                <div style={styles.infoCard}>
+                  <p style={styles.infoLabel}>Statut</p>
+                  <p style={styles.infoValue}>
+                    {selectedUserDetails.user.statut === 'active' ? '✅ Actif' : '⛔ Suspendu'}
+                  </p>
+                </div>
+                <div style={styles.infoCard}>
+                  <p style={styles.infoLabel}>Inscrit le</p>
+                  <p style={styles.infoValue}>
+                    {new Date(selectedUserDetails.user.dateinscri).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Contenu spécifique Étudiant */}
+              {selectedUserDetails.user.role === 'student' && selectedUserDetails.details.enrollments && (
+                <div style={styles.detailsSection}>
+                  <h3 style={styles.detailsTitle}>📚 Cours Suivis ({selectedUserDetails.details.stats.coursesEnrolled})</h3>
+                  <div style={styles.tableContainer}>
+                    <table style={styles.modalTable}>
+                      <thead>
+                        <tr>
+                          <th>Cours</th>
+                          <th>Progression</th>
+                          <th>Statut</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedUserDetails.details.enrollments.length > 0 ? (
+                          selectedUserDetails.details.enrollments.map((enrollment, idx) => (
+                            <tr key={idx}>
+                              <td>{enrollment.title}</td>
+                              <td>
+                                <div style={styles.progressBar}>
+                                  <div style={{ ...styles.progressFill, width: `${enrollment.progress}%` }}></div>
+                                </div>
+                                <span style={{ fontSize: '0.8rem' }}>{Math.round(enrollment.progress)}%</span>
+                              </td>
+                              <td>
+                                <span style={{
+                                  ...styles.badge,
+                                  background: enrollment.status === 'completed' ? '#10b981' : '#3b82f6'
+                                }}>
+                                  {enrollment.status === 'completed' ? 'Terminé' : 'En cours'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr><td colSpan="3" style={{ textAlign: 'center' }}>Aucun cours suivi</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Contenu spécifique Formateur */}
+              {selectedUserDetails.user.role === 'instructor' && selectedUserDetails.details.courses && (
+                <div style={styles.detailsSection}>
+                  <h3 style={styles.detailsTitle}>👨‍🏫 Cours Créés ({selectedUserDetails.details.stats.totalCourses})</h3>
+                  <div style={styles.tableContainer}>
+                    <table style={styles.modalTable}>
+                      <thead>
+                        <tr>
+                          <th>Titre</th>
+                          <th>Étudiants</th>
+                          <th>Note</th>
+                          <th>Revenus</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedUserDetails.details.courses.length > 0 ? (
+                          selectedUserDetails.details.courses.map((course, idx) => (
+                            <tr key={idx}>
+                              <td>{course.title}</td>
+                              <td>👥 {course.students}</td>
+                              <td>⭐ {course.rating}</td>
+                              <td>💰 {course.revenue} TND</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr><td colSpan="4" style={{ textAlign: 'center' }}>Aucun cours créé</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button
+                style={{ ...styles.actionBtn, background: '#ef4444', color: 'white' }}
+                onClick={() => {
+                  toggleUserStatus(selectedUserDetails.user._id, selectedUserDetails.user.statut);
+                  closeModal();
+                }}
+              >
+                {selectedUserDetails.user.statut === 'active' ? 'Suspendre' : 'Activer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header style={styles.header}>
         <div style={styles.headerContent}>
@@ -248,11 +402,11 @@ export default function AdminDashboard({ user }) {
                 <h3 style={styles.statValue}>{stats.totalUsers}</h3>
                 <p style={styles.statLabel}>Total Utilisateurs</p>
                 <div style={styles.statProgress}>
-                  <div style={{...styles.statProgressBar, width: '100%', background: '#f97316'}}></div>
+                  <div style={{ ...styles.statProgressBar, width: '100%', background: '#f97316' }}></div>
                 </div>
               </div>
             </div>
-            
+
             <div style={styles.statCard}>
               <div style={styles.statIcon}>🎓</div>
               <div style={styles.statContent}>
@@ -260,14 +414,14 @@ export default function AdminDashboard({ user }) {
                 <p style={styles.statLabel}>Étudiants ({getRolePercentage(stats.totalStudents, stats.totalUsers)}%)</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${getRolePercentage(stats.totalStudents, stats.totalUsers)}%`, 
+                    ...styles.statProgressBar,
+                    width: `${getRolePercentage(stats.totalStudents, stats.totalUsers)}%`,
                     background: '#10b981'
                   }}></div>
                 </div>
               </div>
             </div>
-            
+
             <div style={styles.statCard}>
               <div style={styles.statIcon}>👨‍🏫</div>
               <div style={styles.statContent}>
@@ -275,14 +429,14 @@ export default function AdminDashboard({ user }) {
                 <p style={styles.statLabel}>Formateurs ({getRolePercentage(stats.totalInstructors, stats.totalUsers)}%)</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${getRolePercentage(stats.totalInstructors, stats.totalUsers)}%`, 
+                    ...styles.statProgressBar,
+                    width: `${getRolePercentage(stats.totalInstructors, stats.totalUsers)}%`,
                     background: '#f59e0b'
                   }}></div>
                 </div>
               </div>
             </div>
-            
+
             <div style={styles.statCard}>
               <div style={styles.statIcon}>⚙️</div>
               <div style={styles.statContent}>
@@ -290,14 +444,14 @@ export default function AdminDashboard({ user }) {
                 <p style={styles.statLabel}>Administrateurs ({getRolePercentage(stats.totalAdmins, stats.totalUsers)}%)</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${getRolePercentage(stats.totalAdmins, stats.totalUsers)}%`, 
+                    ...styles.statProgressBar,
+                    width: `${getRolePercentage(stats.totalAdmins, stats.totalUsers)}%`,
                     background: '#ef4444'
                   }}></div>
                 </div>
               </div>
             </div>
-            
+
             <div style={styles.statCard}>
               <div style={styles.statIcon}>✅</div>
               <div style={styles.statContent}>
@@ -305,14 +459,14 @@ export default function AdminDashboard({ user }) {
                 <p style={styles.statLabel}>Utilisateurs Actifs</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${getRolePercentage(stats.activeUsers, stats.totalUsers)}%`, 
+                    ...styles.statProgressBar,
+                    width: `${getRolePercentage(stats.activeUsers, stats.totalUsers)}%`,
                     background: '#10b981'
                   }}></div>
                 </div>
               </div>
             </div>
-            
+
             <div style={styles.statCard}>
               <div style={styles.statIcon}>⛔</div>
               <div style={styles.statContent}>
@@ -320,8 +474,8 @@ export default function AdminDashboard({ user }) {
                 <p style={styles.statLabel}>Comptes Suspendus</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${getRolePercentage(stats.suspendedUsers, stats.totalUsers)}%`, 
+                    ...styles.statProgressBar,
+                    width: `${getRolePercentage(stats.suspendedUsers, stats.totalUsers)}%`,
                     background: '#ef4444'
                   }}></div>
                 </div>
@@ -336,8 +490,8 @@ export default function AdminDashboard({ user }) {
                   <p style={styles.statLabel}>Formateurs en Attente</p>
                   <div style={styles.statProgress}>
                     <div style={{
-                      ...styles.statProgressBar, 
-                      width: `${(stats.pendingInstructors / Math.max(stats.totalInstructors, 1)) * 100}%`, 
+                      ...styles.statProgressBar,
+                      width: `${(stats.pendingInstructors / Math.max(stats.totalInstructors, 1)) * 100}%`,
                       background: '#f59e0b'
                     }}></div>
                   </div>
@@ -360,7 +514,7 @@ export default function AdminDashboard({ user }) {
                       {userTrends.map((trend, index) => (
                         <div key={index} style={styles.chartBar}>
                           <div style={styles.chartBars}>
-                            <div 
+                            <div
                               style={{
                                 ...styles.chartBarItem,
                                 height: `${(trend.students / maxUserTrendValue) * 100}%`,
@@ -368,7 +522,7 @@ export default function AdminDashboard({ user }) {
                                 title: `${trend.students} étudiants`
                               }}
                             ></div>
-                            <div 
+                            <div
                               style={{
                                 ...styles.chartBarItem,
                                 height: `${(trend.instructors / maxUserTrendValue) * 100}%`,
@@ -376,7 +530,7 @@ export default function AdminDashboard({ user }) {
                                 title: `${trend.instructors} formateurs`
                               }}
                             ></div>
-                            <div 
+                            <div
                               style={{
                                 ...styles.chartBarItem,
                                 height: `${(trend.admins / maxUserTrendValue) * 100}%`,
@@ -391,15 +545,15 @@ export default function AdminDashboard({ user }) {
                     </div>
                     <div style={styles.chartLegend}>
                       <div style={styles.legendItem}>
-                        <div style={{...styles.legendColor, background: '#10b981'}}></div>
+                        <div style={{ ...styles.legendColor, background: '#10b981' }}></div>
                         <span>Étudiants</span>
                       </div>
                       <div style={styles.legendItem}>
-                        <div style={{...styles.legendColor, background: '#f59e0b'}}></div>
+                        <div style={{ ...styles.legendColor, background: '#f59e0b' }}></div>
                         <span>Formateurs</span>
                       </div>
                       <div style={styles.legendItem}>
-                        <div style={{...styles.legendColor, background: '#ef4444'}}></div>
+                        <div style={{ ...styles.legendColor, background: '#ef4444' }}></div>
                         <span>Admins</span>
                       </div>
                     </div>
@@ -414,7 +568,7 @@ export default function AdminDashboard({ user }) {
                     <div style={styles.chart}>
                       {enrollmentTrends.map((trend, index) => (
                         <div key={index} style={styles.chartBar}>
-                          <div 
+                          <div
                             style={{
                               ...styles.chartBarItem,
                               height: `${(trend.enrollments / maxEnrollmentValue) * 100}%`,
@@ -439,7 +593,7 @@ export default function AdminDashboard({ user }) {
                     <div style={styles.chart}>
                       {courseTrends.map((trend, index) => (
                         <div key={index} style={styles.chartBar}>
-                          <div 
+                          <div
                             style={{
                               ...styles.chartBarItem,
                               height: `${(trend.courses / maxCourseTrendValue) * 100}%`,
@@ -464,7 +618,7 @@ export default function AdminDashboard({ user }) {
                         <div style={styles.miniLabel}>{role.role}</div>
                         <div style={styles.miniValue}>{role.count}</div>
                         <div style={styles.miniBar}>
-                          <div 
+                          <div
                             style={{
                               ...styles.miniFill,
                               width: `${getRolePercentage(role.count, stats.totalUsers)}%`,
@@ -487,7 +641,7 @@ export default function AdminDashboard({ user }) {
                         <div style={styles.miniLabel}>{cat.category}</div>
                         <div style={styles.miniValue}>{cat.count}</div>
                         <div style={styles.miniBar}>
-                          <div 
+                          <div
                             style={{
                               ...styles.miniFill,
                               width: `${(cat.count / Math.max(stats.totalCourses, 1)) * 100}%`,
@@ -590,7 +744,7 @@ export default function AdminDashboard({ user }) {
         </section>
 
         {/* Utilisateurs */}
-        <section style={styles.recentSection}>
+        <section style={styles.recentSection} id="users-table">
           <h2 style={styles.sectionTitle}>
             👥 Utilisateurs {filteredUsers.length !== allUsers.length && `(${filteredUsers.length} sur ${allUsers.length})`}
           </h2>
@@ -609,7 +763,7 @@ export default function AdminDashboard({ user }) {
               <tbody>
                 {filteredUsers.length > 0 ? (
                   filteredUsers.map((user) => (
-                    <tr key={user.id} style={styles.tr}>
+                    <tr key={user._id || user.id} style={styles.tr}>
                       <td style={styles.td}>{user.prenom} {user.nom}</td>
                       <td style={styles.td}>{user.email}</td>
                       <td style={styles.td}>
@@ -632,18 +786,18 @@ export default function AdminDashboard({ user }) {
                         {new Date(user.dateinscri).toLocaleDateString('fr-FR')}
                       </td>
                       <td style={styles.td}>
-                        <button 
+                        <button
                           style={styles.actionBtnSmall}
-                          onClick={() => alert(`Voir détails de ${user.prenom} ${user.nom}`)}
+                          onClick={() => handleViewDetails(user._id || user.id)}
                         >
                           👁️
                         </button>
-                        <button 
+                        <button
                           style={{
                             ...styles.actionBtnSmall,
                             background: user.statut === 'active' ? '#ef4444' : '#10b981'
                           }}
-                          onClick={() => toggleUserStatus(user.id, user.statut)}
+                          onClick={() => toggleUserStatus(user._id || user.id, user.statut)}
                         >
                           {user.statut === 'active' ? '⛔' : '✅'}
                         </button>
@@ -652,7 +806,7 @@ export default function AdminDashboard({ user }) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" style={{...styles.td, textAlign: 'center', padding: '40px'}}>
+                    <td colSpan="6" style={{ ...styles.td, textAlign: 'center', padding: '40px' }}>
                       Aucun utilisateur trouvé
                     </td>
                   </tr>
@@ -666,7 +820,7 @@ export default function AdminDashboard({ user }) {
         <section style={styles.actionsSection}>
           <h2 style={styles.sectionTitle}>⚡ Actions Rapides</h2>
           <div style={styles.actionsGrid}>
-            <button style={styles.actionBtn} onClick={() => alert('Gestion des utilisateurs - À implémenter')}>
+            <button style={styles.actionBtn} onClick={() => document.getElementById('users-table').scrollIntoView({ behavior: 'smooth' })}>
               👥 Gérer les Utilisateurs
             </button>
             <button style={styles.actionBtn} onClick={() => alert('Gestion des cours - À implémenter')}>
@@ -795,6 +949,116 @@ const styles = {
     marginTop: '24px',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     boxShadow: '0 4px 12px rgba(249, 115, 22, 0.25)',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    backdropFilter: 'blur(5px)',
+  },
+  modalContent: {
+    background: 'white',
+    borderRadius: '20px',
+    width: '90%',
+    maxWidth: '800px',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    animation: 'pulse 0.3s ease-out',
+  },
+  modalHeader: {
+    padding: '24px',
+    borderBottom: '1px solid #e5e7eb',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: '#f8fafc',
+    borderTopLeftRadius: '20px',
+    borderTopRightRadius: '20px',
+  },
+  modalTitle: {
+    fontSize: '1.5rem',
+    fontWeight: 'bold',
+    color: '#0f172a',
+  },
+  closeBtn: {
+    background: 'none',
+    border: 'none',
+    fontSize: '2rem',
+    cursor: 'pointer',
+    color: '#64748b',
+    padding: '0 10px',
+  },
+  modalBody: {
+    padding: '24px',
+  },
+  userInfoGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '20px',
+    marginBottom: '30px',
+  },
+  infoCard: {
+    background: '#f8fafc',
+    padding: '16px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+  },
+  infoLabel: {
+    fontSize: '0.875rem',
+    color: '#64748b',
+    marginBottom: '4px',
+  },
+  infoValue: {
+    fontSize: '1.1rem',
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  detailsSection: {
+    marginTop: '30px',
+  },
+  detailsTitle: {
+    fontSize: '1.25rem',
+    fontWeight: 'bold',
+    marginBottom: '16px',
+    color: '#0f172a',
+    borderLeft: '4px solid #f97316',
+    paddingLeft: '12px',
+  },
+  modalTable: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    fontSize: '0.95rem',
+  },
+  progressBar: {
+    width: '100px',
+    height: '6px',
+    background: '#e2e8f0',
+    borderRadius: '3px',
+    overflow: 'hidden',
+    display: 'inline-block',
+    marginRight: '8px',
+    verticalAlign: 'middle',
+  },
+  progressFill: {
+    height: '100%',
+    background: '#10b981',
+    borderRadius: '3px',
+  },
+  modalFooter: {
+    padding: '20px',
+    borderTop: '1px solid #e5e7eb',
+    textAlign: 'right',
+    background: '#f8fafc',
+    borderBottomLeftRadius: '20px',
+    borderBottomRightRadius: '20px',
   },
   header: {
     background: 'rgba(255, 255, 255, 0.98)',
@@ -1138,7 +1402,7 @@ const styles = {
   actionBtnSmall: {
     padding: '6px 12px',
     margin: '0 4px',
-                    background: '#f97316',
+    background: '#f97316',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
