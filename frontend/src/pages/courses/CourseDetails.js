@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { courseService } from '../../services/api';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function CourseDetails() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
     const [course, setCourse] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -83,10 +86,10 @@ export default function CourseDetails() {
     );
 }
 
-const styles = {
+const getStyles = (theme) => ({
     container: {
         minHeight: '100vh',
-        background: 'white',
+        background: theme.background,
     },
     center: {
         display: 'flex',
@@ -94,9 +97,10 @@ const styles = {
         alignItems: 'center',
         height: '100vh',
         fontSize: '20px',
+        color: theme.text,
     },
     hero: {
-        background: '#1f2937',
+        background: theme.mode === 'dark' ? '#111827' : '#1f2937', // Slightly darker for dark mode
         color: 'white',
         padding: '60px 20px',
     },
@@ -148,14 +152,16 @@ const styles = {
         gap: '40px',
     },
     section: {
-        background: 'white',
-        border: '1px solid #e5e7eb',
+        background: theme.paper,
+        border: `1px solid ${theme.border}`,
         borderRadius: '12px',
         padding: '30px',
+        boxShadow: theme.shadow,
     },
     list: {
         paddingLeft: '20px',
         lineHeight: '1.8',
+        color: theme.text,
     },
     lessons: {
         display: 'flex',
@@ -166,21 +172,23 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         padding: '15px',
-        background: '#f9fafb',
+        background: theme.background,
         borderRadius: '8px',
         gap: '20px',
+        border: `1px solid ${theme.border}`,
     },
     lessonIndex: {
         fontWeight: 'bold',
-        color: '#9ca3af',
+        color: theme.textSecondary,
     },
     lessonInfo: {
         flex: 1,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
+        color: theme.text,
     },
     lock: {
         fontSize: '20px',
     }
-};
+});

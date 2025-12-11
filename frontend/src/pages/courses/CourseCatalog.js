@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { courseService } from '../../services/api';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function CourseCatalog() {
     const navigate = useNavigate();
+    const { theme } = useTheme();
+    const styles = getStyles(theme);
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState({
@@ -119,14 +122,14 @@ export default function CourseCatalog() {
     );
 }
 
-const styles = {
+const getStyles = (theme) => ({
     container: {
         minHeight: '100vh',
-        background: '#f3f4f6',
+        background: theme.background,
     },
     header: {
-        background: 'white',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        background: theme.paper,
+        boxShadow: theme.shadow,
         padding: '20px 0',
     },
     headerContent: {
@@ -140,7 +143,7 @@ const styles = {
     title: {
         margin: 0,
         fontSize: '24px',
-        color: '#111827',
+        color: theme.text,
     },
     dashBtn: {
         padding: '10px 20px',
@@ -165,15 +168,18 @@ const styles = {
         flex: 1,
         padding: '12px',
         borderRadius: '8px',
-        border: '1px solid #d1d5db',
+        border: `1px solid ${theme.border}`,
         fontSize: '16px',
+        background: theme.paper,
+        color: theme.text,
     },
     select: {
         padding: '12px',
         borderRadius: '8px',
-        border: '1px solid #d1d5db',
-        background: 'white',
+        border: `1px solid ${theme.border}`,
+        background: theme.paper,
         fontSize: '16px',
+        color: theme.text,
     },
     grid: {
         display: 'grid',
@@ -181,12 +187,13 @@ const styles = {
         gap: '30px',
     },
     card: {
-        background: 'white',
+        background: theme.paper,
         borderRadius: '12px',
         padding: '20px',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        boxShadow: theme.shadow,
         display: 'flex',
         flexDirection: 'column',
+        border: `1px solid ${theme.border}`,
     },
     cardParams: {
         marginBottom: '10px',
@@ -197,18 +204,17 @@ const styles = {
         fontSize: '12px',
         padding: '4px 8px',
         borderRadius: '4px',
-        background: '#eeHO4',
-        color: '#4f46e5',
-        background: '#e0e7ff',
+        background: theme.border,
+        color: theme.text,
         fontWeight: '600',
     },
     cardTitle: {
         margin: '0 0 10px 0',
         fontSize: '18px',
-        color: '#1f2937',
+        color: theme.text,
     },
     cardDesc: {
-        color: '#6b7280',
+        color: theme.textSecondary,
         fontSize: '14px',
         flex: 1,
         marginBottom: '20px',
@@ -218,12 +224,12 @@ const styles = {
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingTop: '15px',
-        borderTop: '1px solid #e5e7eb',
+        borderTop: `1px solid ${theme.border}`,
     },
     price: {
         fontSize: '20px',
         fontWeight: 'bold',
-        color: '#1f2937',
+        color: theme.text,
     },
     detailsBtn: {
         padding: '8px 16px',
@@ -237,13 +243,13 @@ const styles = {
     loading: {
         textAlign: 'center',
         fontSize: '18px',
-        color: '#6b7280',
+        color: theme.textSecondary,
         marginTop: '40px',
     },
     empty: {
         textAlign: 'center',
         fontSize: '18px',
-        color: '#6b7280',
+        color: theme.textSecondary,
         marginTop: '40px',
     }
-};
+});

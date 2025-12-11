@@ -1,6 +1,7 @@
 const Course = require('../models/course.model');
 const Lesson = require('../models/lesson.model');
 const User = require('../models/user.model');
+const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 
@@ -47,25 +48,41 @@ exports.createCourse = async (req, res) => {
 exports.getAllCourses = async (req, res) => {
     try {
         const { categorie, niveau, search } = req.query;
-        let query = { statut: 'approuvé' }; // Par défaut, seulement les cours approuvés pour le public
+        let query = {};
 
-        // Si admin ou formateur demande ses propres cours, on peut ajuster
-        if (req.user && req.user.role === 'admin') {
-            delete query.statut; // Admin voit tout
+        // Si admin, voir tous les cours, sinon seulement les approuvés
+        if (!req.user || req.user.role !== 'admin') {
+            query.statut = 'approuvé';
         }
 
         if (categorie) query.categorie = categorie;
         if (niveau) query.niveau = niveau;
         if (search) {
-            query.$text = { $search: search };
+            query.$or = [
+                { titre: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
         }
 
-        const courses = await Course.find(query)
-            .populate('formateur', 'nom prenom')
-            .lean();
+        // Utiliser la collection MongoDB directement car elle utilise "formateurid"
+        const db = mongoose.connection.db;
+        const courses = await db.collection('courses').find(query).toArray();
 
-        res.json(courses);
+        // Peupler manuellement les informations du formateur
+        const coursesWithInstructor = await Promise.all(courses.map(async (course) => {
+            if (course.formateurid) {
+                const instructor = await User.findById(course.formateurid).select('nom prenom email').lean();
+                return {
+                    ...course,
+                    formateur: instructor
+                };
+            }
+            return course;
+        }));
+
+        res.json(coursesWithInstructor);
     } catch (error) {
+        console.error('Erreur getAllCourses:', error);
         res.status(500).json({
             message: 'Erreur lors de la récupération des cours',
             error: error.message
@@ -109,30 +126,33 @@ exports.updateCourse = async (req, res) => {
         const { id } = req.params;
         const updateData = req.body;
 
-        // Vérifier les droits (formateur propriétaire ou admin)
-        const course = await Course.findById(id);
+        // Utiliser MongoDB directement
+        const db = mongoose.connection.db;
+        const ObjectId = mongoose.Types.ObjectId;
+
+        const course = await db.collection('courses').findOne({ _id: new ObjectId(id) });
+
         if (!course) return res.status(404).json({ message: 'Cours non trouvé' });
 
-        if (course.formateur.toString() !== req.user.userId && req.user.role !== 'admin') {
+        // Vérifier les droits (formateur propriétaire ou admin)
+        if (req.user && course.formateurid && course.formateurid.toString() !== req.user.userId && req.user.role !== 'admin') {
             return res.status(403).json({ message: 'Non autorisé' });
         }
 
-        if (req.file) {
-            updateData.image = req.file.path.replace(/\\/g, '/');
-            // Optionnel: supprimer l'ancienne image si ce n'est pas celle par défaut
-        }
+        // Mettre à jour le cours
+        await db.collection('courses').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
 
-        // Parse JSON strings if form-data
-        if (typeof updateData.objectifs === 'string') updateData.objectifs = JSON.parse(updateData.objectifs);
-        if (typeof updateData.prerequis === 'string') updateData.prerequis = JSON.parse(updateData.prerequis);
-
-        const updatedCourse = await Course.findByIdAndUpdate(id, updateData, { new: true });
+        const updatedCourse = await db.collection('courses').findOne({ _id: new ObjectId(id) });
 
         res.json({
             message: 'Cours mis à jour avec succès',
             course: updatedCourse
         });
     } catch (error) {
+        console.error('Erreur updateCourse:', error);
         res.status(500).json({
             message: 'Erreur lors de la mise à jour du cours',
             error: error.message

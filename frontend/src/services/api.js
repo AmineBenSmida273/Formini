@@ -12,7 +12,7 @@ const api = axios.create({
 // Intercepteur pour ajouter le token aux requêtes
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -31,6 +31,8 @@ api.interceptors.response.use(
       // Token expiré ou invalide
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -59,10 +61,15 @@ export const authService = {
   loginWithMFA: (credentials) => api.post('/auth/login-mfa', credentials),
   facebookLogin: (accessToken) => api.post('/auth/facebook-login', { accessToken }),
 
+  // PASSWORD RESET
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  verifyResetCode: (data) => api.post('/auth/verify-reset-code', data),
+  resetPassword: (data) => api.post('/auth/reset-password', data),
+
   // Fonction utilitaire pour vérifier si l'utilisateur est connecté
   checkAuth: () => {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const user = localStorage.getItem('user') || sessionStorage.getItem('user');
     return {
       isAuthenticated: !!token,
       user: user ? JSON.parse(user) : null
@@ -74,6 +81,8 @@ export const authService = {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('pendingVerificationEmail');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
   }
 };
 
@@ -110,6 +119,7 @@ export const adminService = {
   rejectInstructor: (instructorId) => api.post(`/users/admin/reject-instructor/${instructorId}`),
   downloadCV: (instructorId) => api.get(`/users/admin/instructor/${instructorId}/cv`, { responseType: 'blob' }),
   toggleUserStatus: (userId, statut) => api.put(`/users/admin/user/${userId}/status`, { statut }),
+  getReports: () => api.get('/users/admin/reports'),
 };
 
 export default api;

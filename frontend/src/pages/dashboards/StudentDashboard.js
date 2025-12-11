@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService, dashboardService } from '../../services/api';
+import { useTheme } from '../../context/ThemeContext';
+import ThemeToggle from '../../components/ThemeToggle';
 
 export default function StudentDashboard({ user }) {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [stats, setStats] = useState({
     coursesEnrolled: 0,
     coursesCompleted: 0,
@@ -26,7 +30,7 @@ export default function StudentDashboard({ user }) {
 
   useEffect(() => {
     fetchDashboardData();
-    
+
     if (autoRefresh) {
       refreshIntervalRef.current = setInterval(() => {
         fetchDashboardData();
@@ -44,7 +48,7 @@ export default function StudentDashboard({ user }) {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await dashboardService.getStudentStats();
       const data = response.data;
 
@@ -57,14 +61,14 @@ export default function StudentDashboard({ user }) {
         totalHours: 0,
         averageScore: 0,
       });
-      
+
       setMyCourses(data.myCourses || []);
       setRecentActivity(data.recentActivity || []);
       setRecommendedCourses(data.recommendedCourses || []);
       setUpcomingDeadlines(data.upcomingDeadlines || []);
       setActivityTimeline(data.activityTimeline || []);
       setCourseProgress(data.courseProgressChart || []);
-      
+
       setLoading(false);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
@@ -132,6 +136,7 @@ export default function StudentDashboard({ user }) {
             <button onClick={fetchDashboardData} style={styles.refreshBtn} title="Actualiser">
               🔄
             </button>
+            <ThemeToggle />
             <div style={styles.userInfo}>
               <span style={styles.welcome}>Bonjour, {user?.prenom} {user?.nom}</span>
               <button onClick={handleLogout} style={styles.logoutBtn}>Déconnexion</button>
@@ -153,14 +158,14 @@ export default function StudentDashboard({ user }) {
                 <p style={styles.statLabel}>Cours Inscrits</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${(stats.coursesEnrolled / 20) * 100}%`, 
+                    ...styles.statProgressBar,
+                    width: `${(stats.coursesEnrolled / 20) * 100}%`,
                     background: '#f97316'
                   }}></div>
                 </div>
               </div>
             </div>
-            
+
             <div style={styles.statCard}>
               <div style={styles.statIcon}>✅</div>
               <div style={styles.statContent}>
@@ -168,15 +173,15 @@ export default function StudentDashboard({ user }) {
                 <p style={styles.statLabel}>Cours Terminés</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${getCompletionRate()}%`, 
+                    ...styles.statProgressBar,
+                    width: `${getCompletionRate()}%`,
                     background: '#10b981'
                   }}></div>
                 </div>
                 <p style={styles.statSubtext}>{getCompletionRate()}% de complétion</p>
               </div>
             </div>
-            
+
             <div style={styles.statCard}>
               <div style={styles.statIcon}>🔄</div>
               <div style={styles.statContent}>
@@ -184,14 +189,14 @@ export default function StudentDashboard({ user }) {
                 <p style={styles.statLabel}>En Cours</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${(stats.coursesInProgress / stats.coursesEnrolled) * 100}%`, 
+                    ...styles.statProgressBar,
+                    width: `${(stats.coursesInProgress / stats.coursesEnrolled) * 100}%`,
                     background: '#f59e0b'
                   }}></div>
                 </div>
               </div>
             </div>
-            
+
             <div style={styles.statCard}>
               <div style={styles.statIcon}>🏆</div>
               <div style={styles.statContent}>
@@ -199,8 +204,8 @@ export default function StudentDashboard({ user }) {
                 <p style={styles.statLabel}>Certificats</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${(stats.certificates / stats.coursesCompleted) * 100}%`, 
+                    ...styles.statProgressBar,
+                    width: `${(stats.certificates / stats.coursesCompleted) * 100}%`,
                     background: '#f97316'
                   }}></div>
                 </div>
@@ -214,8 +219,8 @@ export default function StudentDashboard({ user }) {
                 <p style={styles.statLabel}>Heures d'Apprentissage</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${(stats.totalHours / 200) * 100}%`, 
+                    ...styles.statProgressBar,
+                    width: `${(stats.totalHours / 200) * 100}%`,
                     background: '#ec4899'
                   }}></div>
                 </div>
@@ -229,8 +234,8 @@ export default function StudentDashboard({ user }) {
                 <p style={styles.statLabel}>Score Moyen</p>
                 <div style={styles.statProgress}>
                   <div style={{
-                    ...styles.statProgressBar, 
-                    width: `${stats.averageScore}%`, 
+                    ...styles.statProgressBar,
+                    width: `${stats.averageScore}%`,
                     background: '#f59e0b'
                   }}></div>
                 </div>
@@ -258,7 +263,7 @@ export default function StudentDashboard({ user }) {
               <div style={styles.chart}>
                 {displayedActivity.map((data, index) => (
                   <div key={index} style={styles.chartBar}>
-                    <div 
+                    <div
                       style={{
                         ...styles.chartBarItem,
                         height: `${(data.actions / maxProgressValue) * 100}%`,
@@ -272,7 +277,7 @@ export default function StudentDashboard({ user }) {
               </div>
               <div style={styles.chartLegend}>
                 <div style={styles.legendItem}>
-                  <div style={{...styles.legendColor, background: '#3b82f6'}}></div>
+                  <div style={{ ...styles.legendColor, background: '#3b82f6' }}></div>
                   <span>Quiz, inscriptions, cours</span>
                 </div>
               </div>
@@ -292,7 +297,7 @@ export default function StudentDashboard({ user }) {
                     <span style={styles.courseProgressValue}>{course.progress}%</span>
                   </div>
                   <div style={styles.courseProgressBar}>
-                    <div 
+                    <div
                       style={{
                         ...styles.courseProgressFill,
                         width: `${course.progress}%`
@@ -350,8 +355,8 @@ export default function StudentDashboard({ user }) {
                   <h3 style={styles.courseTitle}>{course.title}</h3>
                   <span style={{
                     ...styles.statusBadge,
-                    background: course.status === 'Terminé' ? '#10b981' : 
-                                course.status === 'En cours' ? '#f97316' : '#6b7280'
+                    background: course.status === 'Terminé' ? '#10b981' :
+                      course.status === 'En cours' ? '#f97316' : '#6b7280'
                   }}>
                     {course.status}
                   </span>
@@ -370,7 +375,7 @@ export default function StudentDashboard({ user }) {
                 )}
                 <div style={styles.progressContainer}>
                   <div style={styles.progressBar}>
-                    <div 
+                    <div
                       style={{
                         ...styles.progressFill,
                         width: `${course.progress}%`,
@@ -478,10 +483,10 @@ export default function StudentDashboard({ user }) {
   );
 }
 
-const styles = {
+const getStyles = (theme) => ({
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
+    background: theme.background,
   },
   loading: {
     display: 'flex',
@@ -502,9 +507,10 @@ const styles = {
     marginBottom: '20px',
   },
   header: {
-    background: 'rgba(255, 255, 255, 0.95)',
+    background: theme.paper,
     padding: '20px 40px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    borderBottom: `1px solid ${theme.border}`,
   },
   headerContent: {
     display: 'flex',
@@ -518,12 +524,12 @@ const styles = {
   title: {
     margin: 0,
     fontSize: '28px',
-    color: '#1f2937',
+    color: theme.text,
   },
   subtitle: {
     margin: '5px 0 0 0',
     fontSize: '14px',
-    color: '#6b7280',
+    color: theme.textSecondary,
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
@@ -546,7 +552,7 @@ const styles = {
     alignItems: 'center',
     gap: '8px',
     fontSize: '14px',
-    color: '#4b5563',
+    color: theme.textSecondary,
     cursor: 'pointer',
   },
   toggle: {
@@ -569,7 +575,7 @@ const styles = {
   },
   welcome: {
     fontSize: '16px',
-    color: '#4b5563',
+    color: theme.textSecondary,
   },
   logoutBtn: {
     padding: '10px 20px',
@@ -592,7 +598,7 @@ const styles = {
   },
   sectionTitle: {
     fontSize: '24px',
-    color: 'white',
+    color: theme.text,
     marginBottom: '20px',
     fontWeight: '600',
   },
@@ -602,13 +608,14 @@ const styles = {
     gap: '20px',
   },
   statCard: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '24px',
     display: 'flex',
     alignItems: 'center',
     gap: '20px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    border: `1px solid ${theme.border}`,
     transition: 'transform 0.3s',
   },
   statIcon: {
@@ -621,22 +628,22 @@ const styles = {
     margin: 0,
     fontSize: '32px',
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: theme.text,
   },
   statLabel: {
     margin: '5px 0 0 0',
     fontSize: '14px',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   statSubtext: {
     margin: '5px 0 0 0',
     fontSize: '12px',
-    color: '#9ca3af',
+    color: theme.textSecondary,
   },
   statProgress: {
     marginTop: '10px',
     height: '4px',
-    background: '#e5e7eb',
+    background: theme.border,
     borderRadius: '2px',
     overflow: 'hidden',
   },
@@ -647,10 +654,11 @@ const styles = {
   },
   chartSection: {
     marginBottom: '40px',
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '24px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    border: `1px solid ${theme.border}`,
   },
   chartHeader: {
     display: 'flex',
@@ -660,10 +668,11 @@ const styles = {
   },
   timeframeSelect: {
     padding: '8px 12px',
-    border: '2px solid #e5e7eb',
+    border: `2px solid ${theme.border}`,
     borderRadius: '8px',
     fontSize: '14px',
-    background: 'white',
+    background: theme.paper,
+    color: theme.text,
     cursor: 'pointer',
   },
   chartContainer: {
@@ -701,7 +710,7 @@ const styles = {
   chartLabel: {
     marginTop: '10px',
     fontSize: '11px',
-    color: '#6b7280',
+    color: theme.textSecondary,
     textAlign: 'center',
   },
   chartLegend: {
@@ -709,14 +718,14 @@ const styles = {
     justifyContent: 'center',
     gap: '20px',
     paddingTop: '20px',
-    borderTop: '1px solid #e5e7eb',
+    borderTop: `1px solid ${theme.border}`,
   },
   legendItem: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
     fontSize: '14px',
-    color: '#4b5563',
+    color: theme.textSecondary,
   },
   legendColor: {
     width: '16px',
@@ -725,10 +734,11 @@ const styles = {
   },
   progressByCourseSection: {
     marginBottom: '40px',
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '24px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    border: `1px solid ${theme.border}`,
   },
   courseProgressGrid: {
     display: 'grid',
@@ -736,10 +746,10 @@ const styles = {
     gap: '16px',
   },
   courseProgressCard: {
-    border: '1px solid #e5e7eb',
+    border: `1px solid ${theme.border}`,
     borderRadius: '10px',
     padding: '14px',
-    background: '#f9fafb',
+    background: theme.background,
   },
   courseProgressHeader: {
     display: 'flex',
@@ -749,7 +759,7 @@ const styles = {
   },
   courseProgressTitle: {
     fontWeight: 600,
-    color: '#111827',
+    color: theme.text,
   },
   courseProgressValue: {
     fontWeight: 700,
@@ -757,7 +767,7 @@ const styles = {
   },
   courseProgressBar: {
     height: '8px',
-    background: '#e5e7eb',
+    background: theme.border,
     borderRadius: '999px',
     overflow: 'hidden',
     marginBottom: '6px',
@@ -770,14 +780,15 @@ const styles = {
   },
   courseProgressStatus: {
     fontSize: '12px',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   deadlinesSection: {
     marginBottom: '40px',
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '24px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    border: `1px solid ${theme.border}`,
   },
   deadlinesList: {
     display: 'flex',
@@ -789,9 +800,9 @@ const styles = {
     alignItems: 'center',
     gap: '15px',
     padding: '15px',
-    background: '#f9fafb',
+    background: theme.background,
     borderRadius: '8px',
-    border: '2px solid #e5e7eb',
+    border: `2px solid ${theme.border}`,
   },
   deadlineIcon: {
     fontSize: '32px',
@@ -803,17 +814,41 @@ const styles = {
     margin: '0 0 5px 0',
     fontSize: '16px',
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.text,
+  },
+  deadlineType: {
+    margin: 0,
+    fontSize: '14px',
+    color: theme.textSecondary,
+  },
+  deadlineDate: {
+    margin: '5px 0 0 0',
+    fontSize: '12px',
+    color: theme.textSecondary,
+  },
+  deadlineBadge: {
+    padding: '6px 12px',
+    borderRadius: '8px',
+    color: 'white',
+    width: 'fit-content',
+    fontWeight: 'bold',
+    fontSize: '12px',
+  },
+  deadlineCourse: {
+    margin: '0 0 5px 0',
+    fontSize: '16px',
+    fontWeight: '600',
+    color: theme.text,
   },
   deadlineType: {
     margin: '0 0 5px 0',
     fontSize: '14px',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   deadlineDate: {
     margin: 0,
     fontSize: '12px',
-    color: '#9ca3af',
+    color: theme.textSecondary,
   },
   deadlineBadge: {
     padding: '8px 16px',
@@ -831,7 +866,7 @@ const styles = {
     gap: '20px',
   },
   courseCard: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '24px',
     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
@@ -847,7 +882,7 @@ const styles = {
     margin: 0,
     fontSize: '18px',
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.text,
     flex: 1,
   },
   statusBadge: {
@@ -861,17 +896,17 @@ const styles = {
   courseInstructor: {
     margin: '0 0 10px 0',
     fontSize: '14px',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   courseHours: {
     margin: '0 0 5px 0',
     fontSize: '13px',
-    color: '#4b5563',
+    color: theme.textSecondary,
   },
   nextLesson: {
     margin: '0 0 5px 0',
     fontSize: '13px',
-    color: '#f97316',
+    color: '#3b82f6',
     fontWeight: '500',
   },
   deadlineInfo: {
@@ -901,7 +936,7 @@ const styles = {
   progressText: {
     fontSize: '14px',
     fontWeight: '600',
-    color: '#4b5563',
+    color: theme.textSecondary,
     minWidth: '45px',
   },
   continueBtn: {
@@ -925,28 +960,30 @@ const styles = {
     gap: '20px',
   },
   recommendedCard: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '20px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    transition: 'transform 0.3s',
+    border: `1px solid ${theme.border}`,
   },
   recommendedTitle: {
     margin: '0 0 10px 0',
     fontSize: '16px',
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.text,
   },
   recommendedInstructor: {
     margin: '0 0 10px 0',
     fontSize: '14px',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   recommendedStats: {
     display: 'flex',
     gap: '15px',
     marginBottom: '15px',
     fontSize: '14px',
-    color: '#4b5563',
+    color: theme.textSecondary,
   },
   recommendedBtn: {
     width: '100%',
@@ -961,10 +998,11 @@ const styles = {
   },
   activitySection: {
     marginBottom: '40px',
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '24px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    border: `1px solid ${theme.border}`,
   },
   activityList: {
     display: 'flex',
@@ -976,8 +1014,9 @@ const styles = {
     alignItems: 'center',
     gap: '15px',
     padding: '15px',
-    background: '#f9fafb',
+    background: theme.background,
     borderRadius: '8px',
+    border: `1px solid ${theme.border}`,
   },
   activityIcon: {
     fontSize: '32px',
@@ -988,12 +1027,12 @@ const styles = {
   activityText: {
     margin: '0 0 5px 0',
     fontSize: '14px',
-    color: '#1f2937',
+    color: theme.text,
   },
   activityDate: {
     margin: 0,
     fontSize: '12px',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   actionsSection: {
     marginBottom: '40px',
@@ -1005,30 +1044,31 @@ const styles = {
   },
   actionBtn: {
     padding: '16px 24px',
-    background: 'white',
-    border: 'none',
-    borderRadius: '10px',
+    background: theme.paper,
+    border: `1px solid ${theme.border}`,
+    borderRadius: '12px',
     fontSize: '16px',
     fontWeight: '600',
     cursor: 'pointer',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-    transition: 'all 0.3s',
-    color: '#1f2937',
+    boxShadow: theme.shadow,
+    transition: 'transform 0.2s',
+    color: theme.text,
   },
   emptyState: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '40px',
     textAlign: 'center',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    border: `1px solid ${theme.border}`,
   },
   emptyText: {
     fontSize: '16px',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   lessonProgress: {
     margin: '0 0 5px 0',
     fontSize: '13px',
-    color: '#4b5563',
+    color: theme.textSecondary,
   },
-};
+});

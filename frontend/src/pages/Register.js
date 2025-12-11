@@ -2,9 +2,12 @@ import React, { useState } from "react";
 import { authService } from "../services/api";
 import { Link, useNavigate } from "react-router-dom";
 import signupImage from "../assets/images/signup.png";
+import { useTheme } from "../context/ThemeContext";
 
 export default function Signup() {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [formData, setFormData] = useState({
     nom: "",
     prenom: "",
@@ -62,7 +65,7 @@ export default function Signup() {
       formDataToSend.append('email', formData.email);
       formDataToSend.append('mdp', formData.pass);
       formDataToSend.append('role', formData.role);
-      
+
       if (formData.role === 'instructor') {
         formDataToSend.append('cv', cvFile);
         formDataToSend.append('centreProfession', formData.centreProfession);
@@ -70,20 +73,20 @@ export default function Signup() {
 
       // Utiliser registerWithMFA avec FormData
       const response = await authService.registerWithMFA(formDataToSend);
-      
+
       // Stocker l'email pour la vérification MFA
       localStorage.setItem('pendingVerificationEmail', formData.email);
-      
+
       // Message spécial pour formateurs
       if (formData.role === 'instructor') {
         alert("✅ Votre demande a été soumise. Elle est en attente d'approbation par l'administrateur. Un code de vérification a été envoyé à votre email.");
       }
-      
+
       // Rediriger vers la page de vérification MFA
-      navigate('/verify-mfa', { 
-        state: { email: formData.email } 
+      navigate('/verify-mfa', {
+        state: { email: formData.email }
       });
-      
+
     } catch (err) {
       alert("Erreur : " + (err.response?.data?.message || err.message));
     } finally {
@@ -256,7 +259,7 @@ export default function Signup() {
               </span>
             </div>
 
-            <button 
+            <button
               style={{
                 ...styles.button,
                 ...(loading && styles.buttonLoading)
@@ -274,7 +277,7 @@ export default function Signup() {
             </Link>
           </p>
         </div>
-        
+
         <style>{`
           .register-left::-webkit-scrollbar {
             width: 8px;
@@ -303,11 +306,11 @@ export default function Signup() {
 }
 
 /* ---------- STYLES ---------- */
-const styles = {
+const getStyles = (theme) => ({
   page: {
     width: "100%",
     height: "100vh",
-    background: "linear-gradient(135deg, #ffdab2ff, #fb923c)",
+    background: theme.background,
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
@@ -316,15 +319,15 @@ const styles = {
 
   card: {
     width: "80%",
-    height:"95%",
+    height: "95%",
     maxWidth: "1200px",
     maxHeight: "95vh",
-    background: "#fff",
+    background: theme.paper,
     borderRadius: "24px",
-    boxShadow: "0 20px 60px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)",
+    boxShadow: theme.shadow,
     display: "flex",
     overflow: "hidden",
-    border: "1px solid rgba(249, 115, 22, 0.1)",
+    border: `1px solid ${theme.border}`,
   },
 
   left: {
@@ -335,6 +338,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     maxHeight: "100%",
+    background: theme.paper,
   },
 
   right: {
@@ -352,14 +356,14 @@ const styles = {
   title: {
     fontSize: "32px",
     fontWeight: "bold",
-    color: "#1f2937",
+    color: theme.text,
     marginBottom: "5px",
   },
 
   subtitle: {
     marginTop: "5px",
     fontSize: "15px",
-    color: "#6b7280",
+    color: theme.textSecondary,
     marginBottom: "20px",
   },
 
@@ -376,17 +380,17 @@ const styles = {
 
   inputGroupHalf: {
     flex: 1,
-    background: "#f8fafc",
+    background: theme.background,
     borderRadius: "12px",
-    border: "1.5px solid #e5e7eb",
+    border: `1.5px solid ${theme.border}`,
     padding: "14px 16px",
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   },
 
   inputGroup: {
-    background: "#f8fafc",
+    background: theme.background,
     borderRadius: "12px",
-    border: "1.5px solid #e5e7eb",
+    border: `1.5px solid ${theme.border}`,
     padding: "14px 16px",
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   },
@@ -397,10 +401,12 @@ const styles = {
     outline: "none",
     background: "transparent",
     fontSize: "15px",
+    color: theme.text,
   },
 
   checkboxRow: {
     marginTop: "10px",
+    color: theme.text,
   },
 
   button: {
@@ -416,6 +422,7 @@ const styles = {
     cursor: "pointer",
     transition: "0.3s",
     width: "100%",
+    boxShadow: theme.shadow,
   },
 
   buttonLoading: {
@@ -438,7 +445,9 @@ const styles = {
     marginTop: "15px",
     fontSize: "14px",
     paddingTop: "10px",
-    borderTop: "1px solid #e5e7eb",
+    borderTop: `1px solid ${theme.border}`,
+    color: theme.textSecondary,
+    textAlign: "center",
   },
   helpText: {
     marginTop: "5px",
@@ -448,7 +457,7 @@ const styles = {
   fileLabel: {
     display: "block",
     fontSize: "14px",
-    color: "#4b5563",
+    color: theme.textSecondary,
     marginBottom: "8px",
     fontWeight: "500",
   },
@@ -456,12 +465,13 @@ const styles = {
     marginTop: "8px",
     width: "100%",
     padding: "10px 12px",
-    border: "1.5px solid #e5e7eb",
+    border: `1.5px solid ${theme.border}`,
     borderRadius: "10px",
     fontSize: "14px",
     cursor: "pointer",
-    background: "#ffffff",
+    background: theme.background,
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    color: theme.text,
   },
   fileInfo: {
     marginTop: "8px",
@@ -469,4 +479,4 @@ const styles = {
     color: "#10b981",
     fontWeight: "500",
   },
-};
+});

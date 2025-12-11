@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService, dashboardService, adminService } from '../../services/api';
+import { useTheme } from '../../context/ThemeContext';
+import ThemeToggle from '../../components/ThemeToggle';
+import './AdminDashboard.css';
 
 export default function AdminDashboard({ user }) {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalStudents: 0,
@@ -14,6 +19,7 @@ export default function AdminDashboard({ user }) {
   });
   const [recentUsers, setRecentUsers] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [pendingInstructors, setPendingInstructors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +44,7 @@ export default function AdminDashboard({ user }) {
     if (autoRefresh) {
       refreshIntervalRef.current = setInterval(() => {
         fetchDashboardData();
-      }, 30000); // Refresh toutes les 30 secondes
+      }, 30000);
     }
 
     return () => {
@@ -185,6 +191,7 @@ export default function AdminDashboard({ user }) {
     setShowModal(false);
     setSelectedUserDetails(null);
   };
+
 
   const getRolePercentage = (roleCount, total) => {
     return total > 0 ? ((roleCount / total) * 100).toFixed(1) : 0;
@@ -370,6 +377,13 @@ export default function AdminDashboard({ user }) {
             </p>
           </div>
           <div style={styles.headerActions}>
+            <button
+              onClick={() => navigate('/admin/settings')}
+              style={styles.settingsBtn}
+              title="Paramètres Système"
+            >
+              ⚙️
+            </button>
             <label style={styles.toggleLabel}>
               <input
                 type="checkbox"
@@ -382,6 +396,7 @@ export default function AdminDashboard({ user }) {
             <button onClick={fetchDashboardData} style={styles.refreshBtn} title="Actualiser">
               🔄
             </button>
+            <ThemeToggle />
             <div style={styles.userInfo}>
               <span style={styles.welcome}>Bienvenue, {user?.prenom} {user?.nom}</span>
               <button onClick={handleLogout} style={styles.logoutBtn}>Déconnexion</button>
@@ -396,27 +411,27 @@ export default function AdminDashboard({ user }) {
         <section style={styles.statsSection}>
           <h2 style={styles.sectionTitle}>📈 Statistiques Globales</h2>
           <div style={styles.statsGrid}>
-            <div style={styles.statCard}>
+            <div className="admin-stat-card" style={{ ...styles.statCard, '--index': 0 }}>
               <div style={styles.statIcon}>👥</div>
               <div style={styles.statContent}>
                 <h3 style={styles.statValue}>{stats.totalUsers}</h3>
                 <p style={styles.statLabel}>Total Utilisateurs</p>
                 <div style={styles.statProgress}>
-                  <div style={{ ...styles.statProgressBar, width: '100%', background: '#f97316' }}></div>
+                  <div className="admin-progress-bar" style={{ ...styles.statProgressBar, width: '100%', background: 'linear-gradient(90deg, #ff9a56 0%, #ff6a00 100%)' }}></div>
                 </div>
               </div>
             </div>
 
-            <div style={styles.statCard}>
+            <div className="admin-stat-card" style={{ ...styles.statCard, '--index': 1 }}>
               <div style={styles.statIcon}>🎓</div>
               <div style={styles.statContent}>
                 <h3 style={styles.statValue}>{stats.totalStudents}</h3>
                 <p style={styles.statLabel}>Étudiants ({getRolePercentage(stats.totalStudents, stats.totalUsers)}%)</p>
                 <div style={styles.statProgress}>
-                  <div style={{
+                  <div className="admin-progress-bar" style={{
                     ...styles.statProgressBar,
                     width: `${getRolePercentage(stats.totalStudents, stats.totalUsers)}%`,
-                    background: '#10b981'
+                    background: 'linear-gradient(90deg, #34d399 0%, #059669 100%)'
                   }}></div>
                 </div>
               </div>
@@ -816,21 +831,16 @@ export default function AdminDashboard({ user }) {
           </div>
         </section>
 
+
         {/* Actions Rapides */}
         <section style={styles.actionsSection}>
           <h2 style={styles.sectionTitle}>⚡ Actions Rapides</h2>
           <div style={styles.actionsGrid}>
-            <button style={styles.actionBtn} onClick={() => document.getElementById('users-table').scrollIntoView({ behavior: 'smooth' })}>
-              👥 Gérer les Utilisateurs
-            </button>
-            <button style={styles.actionBtn} onClick={() => alert('Gestion des cours - À implémenter')}>
+            <button style={styles.actionBtn} onClick={() => navigate('/admin/courses')}>
               📚 Gérer les Cours
             </button>
-            <button style={styles.actionBtn} onClick={() => alert('Rapports - À implémenter')}>
+            <button style={styles.actionBtn} onClick={() => navigate('/admin/reports')}>
               📊 Voir les Rapports
-            </button>
-            <button style={styles.actionBtn} onClick={() => alert('Paramètres - À implémenter')}>
-              ⚙️ Paramètres Système
             </button>
           </div>
         </section>
@@ -898,10 +908,12 @@ export default function AdminDashboard({ user }) {
   );
 }
 
-const styles = {
+const getStyles = (theme) => ({
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
+    background: theme.background,
+    color: theme.text,
+    fontFamily: "'Inter', sans-serif",
   },
   loading: {
     display: 'flex',
@@ -929,7 +941,7 @@ const styles = {
     background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
   },
   error: {
-    background: 'white',
+    background: theme.paper,
     padding: '48px',
     borderRadius: '16px',
     textAlign: 'center',
@@ -964,7 +976,7 @@ const styles = {
     backdropFilter: 'blur(5px)',
   },
   modalContent: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '20px',
     width: '90%',
     maxWidth: '800px',
@@ -986,14 +998,14 @@ const styles = {
   modalTitle: {
     fontSize: '1.5rem',
     fontWeight: 'bold',
-    color: '#0f172a',
+    color: theme.text,
   },
   closeBtn: {
     background: 'none',
     border: 'none',
     fontSize: '2rem',
     cursor: 'pointer',
-    color: '#64748b',
+    color: theme.textSecondary,
     padding: '0 10px',
   },
   modalBody: {
@@ -1013,13 +1025,13 @@ const styles = {
   },
   infoLabel: {
     fontSize: '0.875rem',
-    color: '#64748b',
+    color: theme.textSecondary,
     marginBottom: '4px',
   },
   infoValue: {
     fontSize: '1.1rem',
     fontWeight: '600',
-    color: '#0f172a',
+    color: theme.text,
   },
   detailsSection: {
     marginTop: '30px',
@@ -1028,7 +1040,7 @@ const styles = {
     fontSize: '1.25rem',
     fontWeight: 'bold',
     marginBottom: '16px',
-    color: '#0f172a',
+    color: theme.text,
     borderLeft: '4px solid #f97316',
     paddingLeft: '12px',
   },
@@ -1061,10 +1073,10 @@ const styles = {
     borderBottomRightRadius: '20px',
   },
   header: {
-    background: 'rgba(255, 255, 255, 0.98)',
+    background: theme.paper,
     padding: '24px 48px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
-    borderBottom: '1px solid rgba(249, 115, 22, 0.1)',
+    boxShadow: theme.shadow, // Utiliser l'ombre du thème
+    borderBottom: `1px solid ${theme.border}`,
     backdropFilter: 'blur(10px)',
   },
   headerContent: {
@@ -1079,12 +1091,12 @@ const styles = {
   title: {
     margin: 0,
     fontSize: '28px',
-    color: '#1f2937',
+    color: theme.text,
   },
   subtitle: {
     margin: '5px 0 0 0',
     fontSize: '14px',
-    color: '#6b7280',
+    color: theme.textSecondary,
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
@@ -1112,6 +1124,18 @@ const styles = {
   },
   toggle: {
     cursor: 'pointer',
+  },
+  settingsBtn: {
+    padding: '10px 14px',
+    background: theme.paper,
+    color: theme.text,
+    border: `1px solid ${theme.border}`,
+    borderRadius: '10px',
+    cursor: 'pointer',
+    fontSize: '18px',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: theme.shadow,
+    marginRight: '10px',
   },
   refreshBtn: {
     padding: '10px 14px',
@@ -1165,7 +1189,7 @@ const styles = {
     gap: '20px',
   },
   statCard: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '16px',
     padding: '28px',
     display: 'flex',
@@ -1186,12 +1210,12 @@ const styles = {
     margin: 0,
     fontSize: '32px',
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: theme.text,
   },
   statLabel: {
     margin: '5px 0 0 0',
     fontSize: '14px',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   statProgress: {
     marginTop: '10px',
@@ -1207,7 +1231,7 @@ const styles = {
   },
   chartSection: {
     marginBottom: '40px',
-    background: 'white',
+    background: theme.paper,
     borderRadius: '16px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
     border: '1px solid rgba(249, 115, 22, 0.08)',
@@ -1249,7 +1273,7 @@ const styles = {
   chartLabel: {
     marginTop: '10px',
     fontSize: '12px',
-    color: '#6b7280',
+    color: theme.textSecondary,
     textAlign: 'center',
   },
   chartLegend: {
@@ -1278,7 +1302,7 @@ const styles = {
     marginTop: '10px',
   },
   chartCard: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '16px',
     padding: '20px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
@@ -1288,7 +1312,7 @@ const styles = {
     margin: '0 0 12px 0',
     fontSize: '16px',
     fontWeight: 700,
-    color: '#1f2937',
+    color: theme.text,
   },
   miniList: {
     display: 'flex',
@@ -1325,7 +1349,7 @@ const styles = {
     marginBottom: '40px',
   },
   filtersContainer: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '16px',
     padding: '24px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
@@ -1336,33 +1360,39 @@ const styles = {
   },
   searchContainer: {
     flex: 1,
-    minWidth: '250px',
+    minWidth: '300px',
   },
   searchInput: {
     width: '100%',
-    padding: '14px 18px',
-    border: '1.5px solid #e5e7eb',
+    padding: '14px 20px',
+    fontSize: '15px',
+    border: `2px solid ${theme.border}`,
     borderRadius: '12px',
-    fontSize: '14px',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    background: '#f8fafc',
+    outline: 'none',
+    transition: 'all 0.3s',
+    background: theme.paper,
+    color: theme.text,
+    boxSizing: 'border-box',
   },
   filterGroup: {
     display: 'flex',
-    gap: '10px',
+    gap: '12px',
+    flexWrap: 'wrap',
   },
   filterSelect: {
     padding: '14px 18px',
-    border: '1.5px solid #e5e7eb',
-    borderRadius: '12px',
     fontSize: '14px',
-    background: '#f8fafc',
+    border: `2px solid ${theme.border}`,
+    borderRadius: '12px',
+    outline: 'none',
     cursor: 'pointer',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    transition: 'all 0.3s',
+    background: theme.paper,
+    color: theme.text,
     fontWeight: '500',
   },
   recentSection: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '16px',
     padding: '32px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
@@ -1380,7 +1410,7 @@ const styles = {
     padding: '12px',
     textAlign: 'left',
     borderBottom: '2px solid #e5e7eb',
-    color: '#1f2937',
+    color: theme.text,
     fontWeight: '600',
   },
   tr: {
@@ -1420,7 +1450,7 @@ const styles = {
   },
   actionBtn: {
     padding: '18px 28px',
-    background: 'white',
+    background: theme.paper,
     border: '1.5px solid rgba(249, 115, 22, 0.15)',
     borderRadius: '12px',
     fontSize: '16px',
@@ -1428,11 +1458,11 @@ const styles = {
     cursor: 'pointer',
     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    color: '#1f2937',
+    color: theme.text,
   },
   pendingSection: {
     marginBottom: '40px',
-    background: 'white',
+    background: theme.paper,
     borderRadius: '16px',
     padding: '32px',
     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)',
@@ -1462,7 +1492,7 @@ const styles = {
     margin: 0,
     fontSize: '18px',
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.text,
   },
   pendingBadge: {
     padding: '4px 12px',
@@ -1531,4 +1561,4 @@ const styles = {
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     boxShadow: '0 2px 8px rgba(239, 68, 68, 0.2)',
   },
-};
+});

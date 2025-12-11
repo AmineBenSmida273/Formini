@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService, dashboardService, courseService } from '../../services/api';
+import { useTheme } from '../../context/ThemeContext';
+import ThemeToggle from '../../components/ThemeToggle';
 
 export default function InstructorDashboard({ user }) {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [stats, setStats] = useState({
     totalCourses: 0,
     activeCourses: 0,
@@ -333,6 +337,7 @@ export default function InstructorDashboard({ user }) {
             <button onClick={fetchDashboardData} style={styles.refreshBtn} title="Actualiser">
               🔄
             </button>
+            <ThemeToggle />
             <div style={styles.userInfo}>
               <span style={styles.welcome}>Bienvenue, {user?.prenom} {user?.nom}</span>
               <button onClick={handleLogout} style={styles.logoutBtn}>Déconnexion</button>
@@ -664,10 +669,10 @@ export default function InstructorDashboard({ user }) {
   );
 }
 
-const styles = {
+const getStyles = (theme) => ({
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
+    background: theme.background,
   },
   loading: {
     display: 'flex',
@@ -692,14 +697,15 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
+    background: theme.background,
   },
   error: {
-    background: 'white',
+    background: theme.paper,
     padding: '40px',
     borderRadius: '12px',
     textAlign: 'center',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    border: `1px solid ${theme.border}`,
   },
   retryBtn: {
     padding: '10px 20px',
@@ -713,9 +719,10 @@ const styles = {
     marginTop: '20px',
   },
   header: {
-    background: 'rgba(255, 255, 255, 0.95)',
+    background: theme.paper,
     padding: '20px 40px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    borderBottom: `1px solid ${theme.border}`,
   },
   headerContent: {
     display: 'flex',
@@ -729,12 +736,12 @@ const styles = {
   title: {
     margin: 0,
     fontSize: '28px',
-    color: '#1f2937',
+    color: theme.text,
   },
   subtitle: {
     margin: '5px 0 0 0',
     fontSize: '14px',
-    color: '#6b7280',
+    color: theme.textSecondary,
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
@@ -757,7 +764,7 @@ const styles = {
     alignItems: 'center',
     gap: '8px',
     fontSize: '14px',
-    color: '#4b5563',
+    color: theme.textSecondary,
     cursor: 'pointer',
   },
   toggle: {
@@ -780,7 +787,7 @@ const styles = {
   },
   welcome: {
     fontSize: '16px',
-    color: '#4b5563',
+    color: theme.textSecondary,
   },
   logoutBtn: {
     padding: '10px 20px',
@@ -803,7 +810,7 @@ const styles = {
   },
   sectionTitle: {
     fontSize: '24px',
-    color: 'white',
+    color: theme.text,
     marginBottom: '20px',
     fontWeight: '600',
   },
@@ -813,13 +820,14 @@ const styles = {
     gap: '20px',
   },
   statCard: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '24px',
     display: 'flex',
     alignItems: 'center',
     gap: '20px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    border: `1px solid ${theme.border}`,
     transition: 'transform 0.3s',
   },
   statIcon: {
@@ -832,22 +840,22 @@ const styles = {
     margin: 0,
     fontSize: '32px',
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: theme.text,
   },
   statLabel: {
     margin: '5px 0 0 0',
     fontSize: '14px',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   statSubtext: {
     margin: '5px 0 0 0',
     fontSize: '12px',
-    color: '#9ca3af',
+    color: theme.textSecondary,
   },
   statProgress: {
     marginTop: '10px',
     height: '4px',
-    background: '#e5e7eb',
+    background: theme.border,
     borderRadius: '2px',
     overflow: 'hidden',
   },
@@ -858,10 +866,11 @@ const styles = {
   },
   chartSection: {
     marginBottom: '40px',
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '24px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    border: `1px solid ${theme.border}`,
   },
   chartHeader: {
     display: 'flex',
@@ -874,7 +883,7 @@ const styles = {
     border: '2px solid #e5e7eb',
     borderRadius: '8px',
     fontSize: '14px',
-    background: 'white',
+    background: theme.paper,
     cursor: 'pointer',
   },
   chartContainer: {
@@ -905,15 +914,16 @@ const styles = {
   chartLabel: {
     marginTop: '10px',
     fontSize: '11px',
-    color: '#6b7280',
+    color: theme.textSecondary,
     textAlign: 'center',
   },
   engagementSection: {
     marginBottom: '40px',
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '24px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
+    border: `1px solid ${theme.border}`,
   },
   engagementContainer: {
     display: 'flex',
@@ -922,15 +932,15 @@ const styles = {
   },
   engagementCard: {
     padding: '20px',
-    background: '#f9fafb',
+    background: theme.background,
     borderRadius: '8px',
-    border: '1px solid #e5e7eb',
+    border: `1px solid ${theme.border}`,
   },
   engagementCourseName: {
     margin: '0 0 15px 0',
     fontSize: '16px',
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.text,
   },
   engagementStats: {
     display: 'flex',
@@ -945,16 +955,16 @@ const styles = {
   },
   engagementStatLabel: {
     fontSize: '12px',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   engagementStatValue: {
     fontSize: '18px',
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.text,
   },
   engagementBar: {
     height: '8px',
-    background: '#e5e7eb',
+    background: theme.border,
     borderRadius: '4px',
     overflow: 'hidden',
   },
@@ -975,11 +985,11 @@ const styles = {
   },
   sortSelect: {
     padding: '8px 12px',
-    border: '2px solid white',
+    border: `2px solid ${theme.border}`,
     borderRadius: '8px',
     fontSize: '14px',
-    background: 'rgba(255, 255, 255, 0.2)',
-    color: 'white',
+    background: theme.paper,
+    color: theme.text,
     cursor: 'pointer',
   },
   coursesGrid: {
@@ -988,11 +998,12 @@ const styles = {
     gap: '20px',
   },
   courseCard: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '24px',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    boxShadow: theme.shadow,
     transition: 'transform 0.3s',
+    border: `1px solid ${theme.border}`,
   },
   courseHeader: {
     display: 'flex',
@@ -1014,7 +1025,7 @@ const styles = {
     backdropFilter: 'blur(5px)',
   },
   modalContent: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '20px',
     width: '90%',
     maxWidth: '600px',
@@ -1036,7 +1047,7 @@ const styles = {
     border: 'none',
     fontSize: '24px',
     cursor: 'pointer',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   formGrid: {
     display: 'grid',
@@ -1080,7 +1091,7 @@ const styles = {
     margin: 0,
     fontSize: '18px',
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.text,
     flex: 1,
   },
   statusBadge: {
@@ -1094,7 +1105,7 @@ const styles = {
   courseDescription: {
     margin: '0 0 15px 0',
     fontSize: '14px',
-    color: '#6b7280',
+    color: theme.textSecondary,
   },
   courseStats: {
     display: 'grid',
@@ -1102,15 +1113,15 @@ const styles = {
     gap: '10px',
     marginBottom: '15px',
     padding: '15px 0',
-    borderTop: '1px solid #e5e7eb',
-    borderBottom: '1px solid #e5e7eb',
+    borderTop: `1px solid ${theme.border}`,
+    borderBottom: `1px solid ${theme.border}`,
   },
   courseStat: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
     fontSize: '14px',
-    color: '#4b5563',
+    color: theme.textSecondary,
   },
   courseStatIcon: {
     fontSize: '18px',
@@ -1120,7 +1131,7 @@ const styles = {
   },
   completionBar: {
     height: '6px',
-    background: '#e5e7eb',
+    background: theme.border,
     borderRadius: '3px',
     overflow: 'hidden',
     marginBottom: '15px',
@@ -1159,7 +1170,7 @@ const styles = {
   },
   enrollmentsSection: {
     marginBottom: '40px',
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '24px',
     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
@@ -1175,7 +1186,7 @@ const styles = {
     padding: '12px',
     textAlign: 'left',
     borderBottom: '2px solid #e5e7eb',
-    color: '#1f2937',
+    color: theme.text,
     fontWeight: '600',
   },
   tr: {
@@ -1183,7 +1194,7 @@ const styles = {
   },
   td: {
     padding: '12px',
-    color: '#4b5563',
+    color: theme.textSecondary,
   },
   badge: {
     padding: '4px 12px',
@@ -1194,7 +1205,7 @@ const styles = {
     display: 'inline-block',
   },
   emptyState: {
-    background: 'white',
+    background: theme.paper,
     borderRadius: '12px',
     padding: '60px 24px',
     textAlign: 'center',
@@ -1229,14 +1240,14 @@ const styles = {
   },
   actionBtn: {
     padding: '16px 24px',
-    background: 'white',
-    border: 'none',
-    borderRadius: '10px',
+    background: theme.paper,
+    border: `1px solid ${theme.border}`,
+    borderRadius: '12px',
     fontSize: '16px',
     fontWeight: '600',
     cursor: 'pointer',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-    transition: 'all 0.3s',
-    color: '#1f2937',
+    boxShadow: theme.shadow,
+    transition: 'transform 0.2s',
+    color: theme.text,
   },
-};
+});

@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 import AdminDashboard from './dashboards/AdminDashboard';
 import StudentDashboard from './dashboards/StudentDashboard';
 import InstructorDashboard from './dashboards/InstructorDashboard';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,7 +18,7 @@ export default function Dashboard() {
     const loadUser = () => {
       try {
         const { isAuthenticated, user: userData } = authService.checkAuth();
-        
+
         if (!isAuthenticated || !userData) {
           setError('Session expirée. Veuillez vous reconnecter.');
           setTimeout(() => navigate('/login'), 2000);
@@ -67,7 +70,7 @@ export default function Dashboard() {
 
   // Rediriger vers le dashboard approprié selon le rôle
   console.log('Rôle de l\'utilisateur:', user?.role);
-  
+
   if (user?.role === 'admin') {
     console.log('Affichage du dashboard admin');
     return <AdminDashboard user={user} />;
@@ -93,19 +96,19 @@ export default function Dashboard() {
   );
 }
 
-const styles = {
+const getStyles = (theme) => ({
   loading: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     height: '100vh',
-    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
-    color: '#1f2937',
+    background: theme.background,
+    color: theme.text,
   },
   spinner: {
-    border: '4px solid rgba(255, 255, 255, 0.3)',
-    borderTop: '4px solid white',
+    border: `4px solid ${theme.border}`,
+    borderTop: `4px solid ${theme.primary}`,
     borderRadius: '50%',
     width: '50px',
     height: '50px',
@@ -118,13 +121,13 @@ const styles = {
     justifyContent: 'center',
     height: '100vh',
     padding: '20px',
-    background: 'linear-gradient(135deg, #ffdab2ff, #fb923c)',
-    color: '#1f2937',
+    background: theme.background,
+    color: theme.text,
     textAlign: 'center',
   },
   button: {
     padding: '12px 24px',
-    background: '#f97316',
+    background: theme.primary,
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -134,7 +137,7 @@ const styles = {
     marginTop: '20px',
     transition: 'transform 0.2s',
   },
-};
+});
 
 // Animation CSS
 const styleSheet = document.createElement('style');

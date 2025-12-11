@@ -2,9 +2,12 @@ import React, { useState } from "react";
 import { authService } from "../services/api";
 import { Link, useNavigate } from "react-router-dom";
 import signinImage from "../assets/images/SignIn.png";
+import { useTheme } from "../context/ThemeContext";
 
 export default function SignIn() {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [formData, setFormData] = useState({
     email: "",
     mdp: "",
@@ -25,39 +28,47 @@ export default function SignIn() {
     setLoading(true);
 
     try {
-      const email = formData.email.toLowerCase().trim();
-      const isAdminEmail = email === 'admin@formini.com';
+      // Essayer d'abord la connexion standard pour TOUS les utilisateurs
+      // Cela permet de récupérer le rôle depuis le backend
+      const response = await authService.login({
+        email: formData.email,
+        mdp: formData.mdp,
+      });
 
-      // Si c'est l'admin, connexion directe sans MFA
-      if (isAdminEmail) {
-        const response = await authService.login({
-          email: formData.email,
-          mdp: formData.mdp,
-        });
+      const { token, user } = response.data;
 
-        const { token, user } = response.data;
-        if (token && user) {
-          localStorage.setItem('token', token);
-          localStorage.setItem('user', JSON.stringify(user));
+      if (token && user) {
+        // Si c'est un ADMIN => Connexion directe sans MFA
+        if (user.role === 'admin') {
+          if (formData.rememberMe) {
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(user));
+          } else {
+            sessionStorage.setItem('token', token);
+            sessionStorage.setItem('user', JSON.stringify(user));
+          }
           localStorage.removeItem('pendingVerificationEmail');
-          
-          // Rediriger vers le dashboard
+
+          console.log('✅ Admin connecté:', user.email);
           navigate('/dashboard');
-        } else {
-          alert("❌ Erreur : Réponse inattendue du serveur");
         }
-      } else {
-        // Pour les autres utilisateurs, utiliser MFA
-        await authService.loginWithMFA({
-          email: formData.email,
-          mdp: formData.mdp,
-        });
-        localStorage.setItem('pendingVerificationEmail', formData.email);
-        navigate('/verify-mfa', { state: { email: formData.email, flow: 'login' } });
-        alert("✅ Code MFA envoyé. Vérifiez votre email.");
+        // Si c'est un étudiant/formateur => Forcer le MFA
+        else {
+          console.log('🔒 Utilisateur non-admin, redirection vers MFA...');
+
+          // Déclencher l'envoi du code MFA
+          await authService.loginWithMFA({
+            email: formData.email,
+            mdp: formData.mdp,
+          });
+
+          localStorage.setItem('pendingVerificationEmail', formData.email);
+          navigate('/verify-mfa', { state: { email: formData.email, flow: 'login' } });
+        }
       }
-      
+
     } catch (err) {
+      console.error('Erreur de connexion:', err);
       alert("❌ Erreur : " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
@@ -118,13 +129,13 @@ export default function SignIn() {
                   Remember me
                 </span>
               </div>
-              
-              <a href="/forgot-password" style={styles.forgotLink}>
+
+              <Link to="/forgot-password" style={styles.forgotLink}>
                 Forgot password?
-              </a>
+              </Link>
             </div>
 
-            <button 
+            <button
               style={{
                 ...styles.button,
                 ...(loading && styles.buttonLoading)
@@ -140,9 +151,9 @@ export default function SignIn() {
             <div style={styles.divider}>
               <span style={styles.dividerText}>Or continue with</span>
             </div>
-            
+
             <div style={styles.socialButtons}>
-              <button 
+              <button
                 style={styles.socialButton}
                 onClick={() => {
                   window.location.href = "http://localhost:5000/api/auth/google";
@@ -157,7 +168,7 @@ export default function SignIn() {
           <p style={styles.footer}>
             Don't have an account ?{" "}
             <Link to="/register" style={styles.link2}>
-                Sign up
+              Sign up
             </Link>
           </p>
         </div>
@@ -173,11 +184,11 @@ export default function SignIn() {
 }
 
 /* ---------- STYLES ---------- */
-const styles = {
+const getStyles = (theme) => ({
   page: {
     width: "100%",
     height: "100vh",
-    background: "linear-gradient(135deg, #ffdab2ff, #fb923c)",
+    background: theme.background,
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
@@ -188,12 +199,12 @@ const styles = {
     width: "80%",
     height: "95%",
     maxWidth: "1200px",
-    background: "#fff",
+    background: theme.paper,
     borderRadius: "24px",
-    boxShadow: "0 20px 60px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)",
+    boxShadow: theme.shadow,
     display: "flex",
     overflow: "hidden",
-    border: "1px solid rgba(249, 115, 22, 0.1)",
+    border: `1px solid ${theme.border}`,
   },
 
   left: {
@@ -202,6 +213,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
+    background: theme.paper,
   },
 
   right: {
@@ -219,13 +231,13 @@ const styles = {
   title: {
     fontSize: "36px",
     fontWeight: "bold",
-    color: "#1f2937",
+    color: theme.text,
   },
 
   subtitle: {
     marginTop: "5px",
     fontSize: "15px",
-    color: "#6b7280",
+    color: theme.textSecondary,
     marginBottom: "30px",
   },
 
@@ -236,9 +248,9 @@ const styles = {
   },
 
   inputGroup: {
-    background: "#f8fafc",
+    background: theme.background,
     borderRadius: "12px",
-    border: "1.5px solid #e5e7eb",
+    border: `1.5px solid ${theme.border}`,
     padding: "14px 16px",
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
   },
@@ -249,6 +261,7 @@ const styles = {
     outline: "none",
     background: "transparent",
     fontSize: "15px",
+    color: theme.text,
   },
 
   optionsRow: {
@@ -261,6 +274,7 @@ const styles = {
   rememberMe: {
     display: "flex",
     alignItems: "center",
+    color: theme.textSecondary,
   },
 
   forgotLink: {
@@ -300,9 +314,9 @@ const styles = {
   },
 
   dividerText: {
-    background: "#fff",
+    background: theme.paper,
     padding: "0 15px",
-    color: "#6b7280",
+    color: theme.textSecondary,
     fontSize: "14px",
   },
 
@@ -319,14 +333,15 @@ const styles = {
     justifyContent: "center",
     gap: "8px",
     padding: "14px",
-    border: "1.5px solid #e5e7eb",
+    border: `1.5px solid ${theme.border}`,
     borderRadius: "12px",
-    background: "white",
+    background: theme.background,
     cursor: "pointer",
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     fontSize: "14px",
     fontWeight: "500",
     boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
+    color: theme.text,
   },
 
   socialIcon: {
@@ -348,8 +363,9 @@ const styles = {
     marginTop: "20px",
     fontSize: "14px",
     textAlign: "center",
+    color: theme.textSecondary,
   },
-};
+});
 
 // Effets hover
 const styleElement = document.createElement('style');

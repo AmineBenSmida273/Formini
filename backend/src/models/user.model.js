@@ -71,8 +71,8 @@ const userSchema = new mongoose.Schema({
   // --- FORMATEUR SPECIFIQUE ---
   cv: { type: String, default: null }, // Chemin vers le fichier CV PDF
   centreProfession: { type: String, default: null }, // Centre de profession
-  statutInscription: { 
-    type: String, 
+  statutInscription: {
+    type: String,
     enum: ['pending', 'approved', 'rejected'],
     required: false, // Optionnel - seulement pour les formateurs
     // Pas de default - le champ ne sera pas défini si ce n'est pas un formateur
@@ -84,6 +84,10 @@ const userSchema = new mongoose.Schema({
   verificationCode: { type: String, default: null },
   verificationCodeExpires: { type: Date, default: null },
   mfaEnabled: { type: Boolean, default: true },
+
+  // --- PASSWORD RESET ---
+  resetPasswordCode: { type: String, default: null },
+  resetPasswordExpires: { type: Date, default: null },
 
   // --- LOGIN SECURITY ---
   lastLogin: { type: Date, default: null },

@@ -6,55 +6,90 @@ import SignIn from './pages/SignIn';
 import MFAVerification from './pages/MFAVerification';
 import GoogleSuccess from './pages/GoogleSuccess';
 import Dashboard from './pages/Dashboard';
+import AdminCourses from './pages/dashboards/AdminCourses';
+import AdminSettings from './pages/dashboards/AdminSettings';
+import AdminReports from './pages/dashboards/AdminReports'; // Import
 import CourseCatalog from './pages/courses/CourseCatalog';
 import CourseDetails from './pages/courses/CourseDetails';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
+
+import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Routes publiques */}
-        <Route path="/" element={<Home />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<SignIn />} />
-        <Route path="/verify-mfa" element={<MFAVerification />} />
-        <Route path="/google-success" element={<GoogleSuccess />} />
+    <ThemeProvider>
+      <Router>
+        <Routes>
+          {/* Routes publiques */}
+          <Route path="/" element={<Home />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={<SignIn />} />
+          <Route path="/verify-mfa" element={<MFAVerification />} />
+          <Route path="/google-success" element={<GoogleSuccess />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Routes protégées */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <div>Profil à créer</div>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/courses"
-          element={
-            <ProtectedRoute>
-              <div>Cours à créer</div>
-            </ProtectedRoute>
-          }
-        />
+          {/* Routes protégées */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/courses"
+            element={
+              <ProtectedRoute>
+                <AdminCourses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedRoute>
+                <AdminSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <ProtectedRoute>
+                <AdminReports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <div>Profil à créer</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/courses"
+            element={
+              <ProtectedRoute>
+                <div>Cours à créer</div>
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Route 404 */}
-        <Route path="*" element={<div style={styles.notFound}>
-          <h1>404 - Page non trouvée</h1>
-          <p>La page que vous recherchez n'existe pas.</p>
-          <a href="/" style={styles.homeLink}>Retour à l'accueil</a>
-        </div>} />
-      </Routes>
-    </Router>
+          {/* Route 404 */}
+          <Route path="*" element={<div style={styles.notFound}>
+            <h1>404 - Page non trouvée</h1>
+            <p>La page que vous recherchez n'existe pas.</p>
+            <a href="/" style={styles.homeLink}>Retour à l'accueil</a>
+          </div>} />
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
 
@@ -85,10 +120,10 @@ const styles = {
 // Styles dynamiques pour les liens
 const styleElement = document.createElement('style');
 styleElement.textContent = `
-  .home-link:hover {
-    transform: translateY(-2px);
+      .home-link:hover {
+        transform: translateY(-2px);
   }
-`;
+      `;
 document.head.appendChild(styleElement);
 
 export default App;

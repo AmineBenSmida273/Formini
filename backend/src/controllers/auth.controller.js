@@ -610,6 +610,94 @@ const completeProfile = async (req, res) => {
 };
 
 
+
+/* ============================================================
+   ===============   PASSWORD RESET   ==========================
+   ============================================================ */
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+
+    if (!user) {
+      // Pour sécurité, on ne dit pas si l'utilisateur n'existe pas
+      // Mais pour le debug dev, on peut logger
+      console.log('Forgot Password: Utilisateur non trouvé pour', email);
+      return res.status(200).json({ message: 'Si un compte existe, un code a été envoyé.' });
+    }
+
+    const resetCode = generateVerificationCode();
+    user.resetPasswordCode = resetCode;
+    user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await user.save();
+
+    await sendVerificationCode(email, resetCode); // Réutilisation de la fonction d'envoi de code
+
+    res.json({ message: 'Code de réinitialisation envoyé' });
+
+  } catch (error) {
+    console.error('Erreur forgot password:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+const verifyResetCode = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+      resetPasswordCode: code,
+      resetPasswordExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Code invalide ou expiré' });
+    }
+
+    res.json({ message: 'Code valide' });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+      resetPasswordCode: code,
+      resetPasswordExpires: { $gt: new Date() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Session expirée ou code invalide' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 8 caractères' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    user.mdp = hashedPassword;
+    user.resetPasswordCode = undefined;
+    user.resetPasswordExpires = undefined;
+
+    // Si le compte n'était pas vérifié, on le considère vérifié après un reset mdp réussi via email
+    if (!user.isVerified) user.isVerified = true;
+
+    await user.save();
+
+    res.json({ message: 'Mot de passe réinitialisé avec succès' });
+
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+
 /* ============================================================
    =================== EXPORT FINAL =============================
    ============================================================ */
@@ -624,5 +712,8 @@ module.exports = {
   googleAuthRedirect,
   googleAuthCallback,
   googleLogin,
-  completeProfile
+  completeProfile,
+  forgotPassword,
+  verifyResetCode,
+  resetPassword
 };

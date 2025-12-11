@@ -4,6 +4,7 @@ const router = express.Router();
 // CORRECTION : Chemin relatif correct
 const userController = require('../controllers/user.controller');
 const adminController = require('../controllers/admin.controller');
+const reportsController = require('../controllers/reports.controller');
 const { verifyToken, verifyRole } = require('../middleware/auth.middleware');
 
 // Route d'inscription
@@ -25,5 +26,8 @@ router.post('/admin/reject-instructor/:instructorId', verifyToken, verifyRole('a
 router.get('/admin/instructor/:instructorId/cv', verifyToken, verifyRole('admin'), adminController.downloadCV);
 router.get('/admin/user/:userId', verifyToken, verifyRole('admin'), adminController.getUserDetails);
 router.put('/admin/user/:userId/status', verifyToken, verifyRole('admin'), adminController.toggleUserStatus);
+
+// Route pour les rapports détaillés
+router.get('/admin/reports', verifyToken, verifyRole('admin'), reportsController.getAdminReports);
 
 module.exports = router;
