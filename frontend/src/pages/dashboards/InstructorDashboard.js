@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authService, dashboardService, courseService } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../../components/ThemeToggle';
-
+import NotificationBell from '../../components/NotificationBell';
 export default function InstructorDashboard({ user }) {
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -228,13 +228,7 @@ export default function InstructorDashboard({ user }) {
               <h2>{isEditing ? 'Modifier le cours' : 'Créer un nouveau cours'}</h2>
               <button onClick={() => setShowCourseModal(false)} style={styles.closeBtn}>&times;</button>
             </div>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              // We need to import courseService to use it here.
-              // Assuming I will add the import in a separate tool call or use a workaround.
-              // For now, let's just log.
-              console.log('Form submitted');
-            }}>
+            <form onSubmit={handleSubmitCourse}>
               <div style={styles.formGrid}>
                 <div style={styles.formGroup}>
                   <label>Titre</label>
@@ -260,7 +254,7 @@ export default function InstructorDashboard({ user }) {
                   </select>
                 </div>
                 <div style={styles.formGroup}>
-                  <label>Prix (€)</label>
+                  <label>Prix (TND)</label>
                   <input
                     type="number"
                     value={courseFormData.prix}
@@ -325,6 +319,7 @@ export default function InstructorDashboard({ user }) {
             </p>
           </div>
           <div style={styles.headerActions}>
+            <NotificationBell />
             <label style={styles.toggleLabel}>
               <input
                 type="checkbox"
@@ -340,6 +335,7 @@ export default function InstructorDashboard({ user }) {
             <ThemeToggle />
             <div style={styles.userInfo}>
               <span style={styles.welcome}>Bienvenue, {user?.prenom} {user?.nom}</span>
+              <button onClick={() => navigate('/instructor-settings')} style={styles.settingsBtn}>⚙️</button>
               <button onClick={handleLogout} style={styles.logoutBtn}>Déconnexion</button>
             </div>
           </div>
@@ -387,9 +383,9 @@ export default function InstructorDashboard({ user }) {
             <div style={styles.statCard}>
               <div style={styles.statIcon}>💰</div>
               <div style={styles.statContent}>
-                <h3 style={styles.statValue}>{stats.totalRevenue.toLocaleString('fr-FR')} €</h3>
+                <h3 style={styles.statValue}>{stats.totalRevenue.toLocaleString('fr-FR')} TND</h3>
                 <p style={styles.statLabel}>Revenus Totaux</p>
-                <p style={styles.statSubtext}>Moyenne: {(stats.totalRevenue / stats.totalCourses).toFixed(0)} €/cours</p>
+                <p style={styles.statSubtext}>Moyenne: {(stats.totalRevenue / stats.totalCourses).toFixed(0)} TND/cours</p>
                 <div style={styles.statProgress}>
                   <div style={{
                     ...styles.statProgressBar,
@@ -442,7 +438,7 @@ export default function InstructorDashboard({ user }) {
                         ...styles.chartBarItem,
                         height: `${(data.revenue / maxRevenueValue) * 100}%`,
                         background: '#f59e0b',
-                        title: `${data.revenue} €`
+                        title: `${data.revenue} TND`
                       }}
                     ></div>
                     <span style={styles.chartLabel}>{data.date}</span>
@@ -525,7 +521,7 @@ export default function InstructorDashboard({ user }) {
                     </div>
                     <div style={styles.courseStat}>
                       <span style={styles.courseStatIcon}>💰</span>
-                      <span style={styles.courseStatText}>{course.revenue || 0} €</span>
+                      <span style={styles.courseStatText}>{course.revenue || 0} TND</span>
                     </div>
                     <div style={styles.courseStat}>
                       <span style={styles.courseStatIcon}>📊</span>
@@ -569,7 +565,7 @@ export default function InstructorDashboard({ user }) {
                 <div style={styles.emptyState}>
                   <div style={styles.emptyIcon}>📚</div>
                   <p style={styles.emptyText}>Vous n'avez pas encore créé de cours</p>
-                  <button style={styles.createBtn} onClick={handleOpenCreateModal}>
+                  <button style={styles.createBtn} onClick={() => navigate('/create-course')}>
                     ➕ Créer mon premier cours
                   </button>
                 </div>
@@ -579,7 +575,7 @@ export default function InstructorDashboard({ user }) {
             <div style={styles.emptyState}>
               <div style={styles.emptyIcon}>📚</div>
               <p style={styles.emptyText}>Vous n'avez pas encore créé de cours</p>
-              <button style={styles.createBtn} onClick={handleOpenCreateModal}>
+              <button style={styles.createBtn} onClick={() => navigate('/create-course')}>
                 ➕ Créer mon premier cours
               </button>
             </div>
@@ -639,17 +635,14 @@ export default function InstructorDashboard({ user }) {
         <section style={styles.actionsSection}>
           <h2 style={styles.sectionTitle}>⚡ Actions Rapides</h2>
           <div style={styles.actionsGrid}>
-            <button style={styles.actionBtn} onClick={() => alert('Créer un cours - À implémenter')}>
+            <button style={styles.actionBtn} onClick={() => navigate('/create-course')}>
               ➕ Créer un Cours
             </button>
-            <button style={styles.actionBtn} onClick={() => alert('Gérer mes cours - À implémenter')}>
+            <button style={styles.actionBtn} onClick={() => navigate('/instructor/courses')}>
               📚 Gérer mes Cours
             </button>
-            <button style={styles.actionBtn} onClick={() => alert('Analytiques - À implémenter')}>
+            <button style={styles.actionBtn} onClick={() => navigate('/instructor/analytics')}>
               📊 Voir les Analytiques
-            </button>
-            <button style={styles.actionBtn} onClick={() => alert('Paramètres - À implémenter')}>
-              ⚙️ Paramètres
             </button>
           </div>
         </section>
@@ -788,6 +781,17 @@ const getStyles = (theme) => ({
   welcome: {
     fontSize: '16px',
     color: theme.textSecondary,
+  },
+  settingsBtn: {
+    padding: '10px 20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.3s',
   },
   logoutBtn: {
     padding: '10px 20px',

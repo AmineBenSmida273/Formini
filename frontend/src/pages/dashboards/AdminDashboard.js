@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { authService, dashboardService, adminService } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../../components/ThemeToggle';
+import NotificationBell from '../../components/NotificationBell';
+import PendingCoursesSection from '../../components/PendingCoursesSection';
 import './AdminDashboard.css';
 
 export default function AdminDashboard({ user }) {
@@ -384,6 +386,7 @@ export default function AdminDashboard({ user }) {
             >
               ⚙️
             </button>
+            <NotificationBell />
             <label style={styles.toggleLabel}>
               <input
                 type="checkbox"
@@ -399,6 +402,13 @@ export default function AdminDashboard({ user }) {
             <ThemeToggle />
             <div style={styles.userInfo}>
               <span style={styles.welcome}>Bienvenue, {user?.prenom} {user?.nom}</span>
+              <button
+                onClick={() => navigate('/admin/settings')}
+                style={styles.settingsBtn}
+                title="Paramètres Système"
+              >
+                ⚙️
+              </button>
               <button onClick={handleLogout} style={styles.logoutBtn}>Déconnexion</button>
             </div>
           </div>
@@ -721,6 +731,8 @@ export default function AdminDashboard({ user }) {
           </section>
         )}
 
+        {/* Cours en Attente d'Approbation */}
+        <PendingCoursesSection />
         {/* Filtres et recherche */}
         <section style={styles.filtersSection}>
           <h2 style={styles.sectionTitle}>🔍 Gestion des Utilisateurs</h2>
@@ -1126,15 +1138,15 @@ const getStyles = (theme) => ({
     cursor: 'pointer',
   },
   settingsBtn: {
-    padding: '10px 14px',
-    background: theme.paper,
-    color: theme.text,
-    border: `1px solid ${theme.border}`,
-    borderRadius: '10px',
+    padding: '10px 20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
     cursor: 'pointer',
-    fontSize: '18px',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    boxShadow: theme.shadow,
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'all 0.3s',
     marginRight: '10px',
   },
   refreshBtn: {

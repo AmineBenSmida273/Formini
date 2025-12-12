@@ -8,9 +8,8 @@ import GoogleSuccess from './pages/GoogleSuccess';
 import Dashboard from './pages/Dashboard';
 import AdminCourses from './pages/dashboards/AdminCourses';
 import AdminSettings from './pages/dashboards/AdminSettings';
-import AdminReports from './pages/dashboards/AdminReports'; // Import
-import CourseCatalog from './pages/courses/CourseCatalog';
-import CourseDetails from './pages/courses/CourseDetails';
+<<<<<<< HEAD
+
 import PaymentPage from './pages/courses/PaymentPage';
 import CourseChaptersPage from './pages/courses/CourseChaptersPage';
 import CourseLessonReader from './pages/courses/CourseLessonReader';
@@ -20,6 +19,15 @@ import UserProfile from './pages/UserProfile';
 import Settings from './pages/Settings';
 import MyCertificates from './pages/MyCertificates';
 import ExploreCourses from './pages/ExploreCourses';
+
+import AdminReports from './pages/dashboards/AdminReports';
+import InstructorCourses from './pages/dashboards/InstructorCourses';
+import InstructorAnalytics from './pages/dashboards/InstructorAnalytics';
+import CourseCatalog from './pages/courses/CourseCatalog';
+import CourseDetails from './pages/courses/CourseDetails';
+import CreateCourse from './pages/CreateCourse';
+import InstructorSettings from './pages/InstructorSettings';
+
 import ProtectedRoute from './components/ProtectedRoute';
 
 import { ThemeProvider } from './context/ThemeContext';
@@ -64,6 +72,23 @@ function App() {
             }
           />
           <Route
+
+            path="/instructor/courses"
+            element={
+              <ProtectedRoute>
+                <InstructorCourses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instructor/analytics"
+            element={
+              <ProtectedRoute>
+                <InstructorAnalytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/reports"
             element={
               <ProtectedRoute>
@@ -75,7 +100,10 @@ function App() {
             path="/profile"
             element={
               <ProtectedRoute>
+
                 <UserProfile />
+
+                <div>Profil à créer</div>
               </ProtectedRoute>
             }
           />
@@ -84,18 +112,26 @@ function App() {
             element={
               <ProtectedRoute>
                 <ExploreCourses />
+                <div>Cours à créer</div>
               </ProtectedRoute>
             }
           />
           <Route
+
             path="/courses/:id"
             element={
               <ProtectedRoute>
                 <CourseDetails />
+            }
+            path="/create-course"
+            element={
+              <ProtectedRoute>
+                <CreateCourse />
               </ProtectedRoute>
             }
           />
           <Route
+
             path="/course/:courseId/chapters"
             element={
               <ProtectedRoute>
@@ -132,6 +168,11 @@ function App() {
             element={
               <ProtectedRoute>
                 <MyCertificates />
+            }
+            path="/instructor-settings"
+            element={
+              <ProtectedRoute>
+                <InstructorSettings />
               </ProtectedRoute>
             }
           />

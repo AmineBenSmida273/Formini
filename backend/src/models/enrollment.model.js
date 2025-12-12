@@ -55,6 +55,7 @@ const enrollmentSchema = new mongoose.Schema({
 }, {
   timestamps: true,
   collection: 'inscriptionstudent'  // Nom explicite de la collection
+
 });
 
 // Index pour améliorer les performances
@@ -64,3 +65,4 @@ enrollmentSchema.index({ dateinscription: 1 });
 enrollmentSchema.index({ statutPaiement: 1 });
 
 module.exports = mongoose.model('InscriptionStudent', enrollmentSchema);
+

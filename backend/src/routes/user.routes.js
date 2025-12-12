@@ -13,10 +13,14 @@ router.post('/register', userController.register);
 // Route de connexion
 router.post('/login', userController.login);
 
+
+// Route changement mot de passe
+router.put('/change-password', verifyToken, userController.changePassword);
 // Routes pour les dashboards (nécessitent une authentification)
 router.get('/dashboard/admin', verifyToken, verifyRole('admin'), userController.getAdminStats);
 router.get('/dashboard/student', verifyToken, verifyRole('student'), userController.getStudentStats);
 router.get('/dashboard/instructor', verifyToken, verifyRole('instructor'), userController.getInstructorStats);
+
 
 // Routes pour le profil utilisateur
 router.get('/profile', verifyToken, userController.getProfile);
@@ -29,6 +33,7 @@ router.put('/reviews/:reviewId', verifyToken, userController.updateReview);
 
 // Routes pour les certificats
 router.get('/my-certificates', verifyToken, userController.getMyCertificates);
+
 
 // Routes admin pour gérer les formateurs
 router.get('/admin/pending-instructors', verifyToken, verifyRole('admin'), adminController.getPendingInstructors);

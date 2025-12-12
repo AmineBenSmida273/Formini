@@ -4,7 +4,8 @@ const nodemailer = require('nodemailer');
 const SMTP_HOST = "smtp.gmail.com";
 const SMTP_PORT = 465;
 const SMTP_USER = "aminebensmida46@gmail.com";
-const SMTP_PASS = "fqycqeyobqepbqax"; 
+
+const SMTP_PASS = "fqycqeyobqepbqax";
 const FROM_EMAIL = "aminebensmida46@gmail.com";
 
 const createTransporter = () => {
@@ -206,9 +207,11 @@ exports.sendInstructorApprovalNotification = async (instructor, approved) => {
           <div style="padding: 30px;">
             <h2 style="color: #1f2937;">${approved ? '✅ Votre demande a été approuvée' : '❌ Votre demande a été rejetée'}</h2>
             <p>Bonjour ${instructor.prenom},</p>
-            <p>${approved 
-              ? 'Félicitations ! Votre demande d\'inscription en tant que formateur a été approuvée par l\'administrateur. Vous pouvez maintenant vous connecter et commencer à créer des cours.'
-              : 'Nous sommes désolés, mais votre demande d\'inscription en tant que formateur a été rejetée. Pour plus d\'informations, veuillez contacter l\'administrateur.'}
+
+            <p>${approved
+          ? 'Félicitations ! Votre demande d\'inscription en tant que formateur a été approuvée par l\'administrateur. Vous pouvez maintenant vous connecter et commencer à créer des cours.'
+          : 'Nous sommes désolés, mais votre demande d\'inscription en tant que formateur a été rejetée. Pour plus d\'informations, veuillez contacter l\'administrateur.'}
+
             </p>
             ${approved ? `
               <div style="text-align:center; margin-top:30px;">
@@ -218,6 +221,136 @@ exports.sendInstructorApprovalNotification = async (instructor, approved) => {
                 </a>
               </div>
             ` : ''}
+          </div>
+          <div style="text-align:center; padding:20px; border-top:1px solid #ddd; color:#999; font-size:12px;">
+            Formini Platform
+          </div>
+        </div>
+      `
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Email envoyé au formateur → ${instructor.email}`);
+    console.log("📨 Message ID:", info.messageId);
+
+    return true;
+
+  } catch (error) {
+    console.log("❌ Erreur SMTP:", error.message);
+    return false;
+  }
+};
+
+// Envoyer email au formateur pour notification d'approbation de cours
+exports.sendCourseApprovalNotification = async (coursePayload, instructor) => {
+  console.log("\n" + "📧".repeat(20));
+  console.log(`📨 NOTIFICATION APPROBATION COURS`);
+  console.log(`👤 Formateur: ${instructor.prenom} ${instructor.nom}`);
+  console.log(`📚 Cours: ${coursePayload.titre}`);
+  console.log("📧".repeat(20) + "\n");
+
+  if (!SMTP_USER || !SMTP_PASS) {
+    console.log("💡 SMTP non configuré — Mode console activé");
+    return true;
+  }
+
+  try {
+    const transporter = createTransporter();
+    if (!transporter) return true;
+
+    const mailOptions = {
+      from: `Formini <${FROM_EMAIL}>`,
+      to: instructor.email,
+      subject: `Formini - Votre cours a été approuvé !`,
+      attachments: [{
+        filename: 'logo.png',
+        path: 'C:/Users/MSI/Desktop/Formini/frontend/src/assets/images/logo.png',
+        cid: 'formini_logo'
+      }],
+      html: `
+        <div style="font-family: Arial; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
+          <div style="text-align: center; background: #10b981; color: white; padding: 20px;">
+            <img src="cid:formini_logo" alt="Formini" style="width:120px;" />
+            <p style="margin:5px 0 0 0;">Cours Approuvé</p>
+          </div>
+          <div style="padding: 30px;">
+            <h2 style="color: #1f2937;">✅ Félicitations !</h2>
+            <p>Bonjour ${instructor.prenom},</p>
+            <p>Nous avons le plaisir de vous informer que votre cours <strong>"${coursePayload.titre}"</strong> a été validé et approuvé par notre équipe d'administration.</p>
+            <p>Votre cours est désormais visible dans le catalogue et les étudiants peuvent s'y inscrire.</p>
+            <p>C'est un excellent travail ! Continuez ainsi.</p>
+            
+            <div style="text-align:center; margin-top:30px;">
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" 
+                 style="background:#f97316; color:white; padding:12px 24px; text-decoration:none; border-radius:8px; display:inline-block;">
+                Voir mon cours
+              </a>
+            </div>
+          </div>
+          <div style="text-align:center; padding:20px; border-top:1px solid #ddd; color:#999; font-size:12px;">
+            Formini Platform
+          </div>
+        </div>
+      `
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Email envoyé au formateur → ${instructor.email}`);
+    console.log("📨 Message ID:", info.messageId);
+
+    return true;
+
+  } catch (error) {
+    console.log("❌ Erreur SMTP:", error.message);
+    return false;
+  }
+};
+
+// Envoyer email au formateur pour notification de refus de cours
+exports.sendCourseRejectionNotification = async (coursePayload, instructor, raison) => {
+  console.log("\n" + "📧".repeat(20));
+  console.log(`📨 NOTIFICATION REFUS COURS`);
+  console.log(`👤 Formateur: ${instructor.prenom} ${instructor.nom}`);
+  console.log(`📚 Cours: ${coursePayload.titre}`);
+  console.log(`❌ Raison: ${raison}`);
+  console.log("📧".repeat(20) + "\n");
+
+  if (!SMTP_USER || !SMTP_PASS) {
+    console.log("💡 SMTP non configuré — Mode console activé");
+    return true;
+  }
+
+  try {
+    const transporter = createTransporter();
+    if (!transporter) return true;
+
+    const mailOptions = {
+      from: `Formini <${FROM_EMAIL}>`,
+      to: instructor.email,
+      subject: `Formini - Mise à jour concernant votre cours`,
+      attachments: [{
+        filename: 'logo.png',
+        path: 'C:/Users/MSI/Desktop/Formini/frontend/src/assets/images/logo.png',
+        cid: 'formini_logo'
+      }],
+      html: `
+        <div style="font-family: Arial; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 10px;">
+          <div style="text-align: center; background: #ef4444; color: white; padding: 20px;">
+            <img src="cid:formini_logo" alt="Formini" style="width:120px;" />
+            <p style="margin:5px 0 0 0;">Cours Refusé</p>
+          </div>
+          <div style="padding: 30px;">
+            <h2 style="color: #1f2937;">❌ Notification de refus</h2>
+            <p>Bonjour ${instructor.prenom},</p>
+            <p>Nous vous remercions d'avoir proposé votre cours <strong>"${coursePayload.titre}"</strong> sur Formini.</p>
+            <p>Après examen, nous sommes au regret de vous informer que ce cours n'a pas été retenu pour publication pour la raison suivante :</p>
+            
+            <div style="background:#fee2e2; border-left: 4px solid #ef4444; padding:15px; margin:20px 0; border-radius:4px; color:#991b1b;">
+              <strong>Raison du refus :</strong><br/>
+              ${raison}
+            </div>
+
+            <p>Vous êtes invité à revoir le contenu de votre cours en tenant compte de ces remarques et à soumettre une nouvelle version.</p>
           </div>
           <div style="text-align:center; padding:20px; border-top:1px solid #ddd; color:#999; font-size:12px;">
             Formini Platform

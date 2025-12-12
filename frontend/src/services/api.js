@@ -94,6 +94,7 @@ export const userService = {
   getMyReviews: () => api.get('/users/my-reviews'),
   updateReview: (reviewId, reviewData) => api.put(`/users/reviews/${reviewId}`, reviewData),
   getMyCertificates: () => api.get('/users/my-certificates'),
+
 };
 
 // Service cours (pour plus tard)
@@ -105,6 +106,10 @@ export const courseService = {
   updateCourse: (id, courseData) => api.put(`/courses/${id}`, courseData),
   deleteCourse: (id) => api.delete(`/courses/${id}`),
   getMyCourses: () => api.get('/courses/instructor/my-courses'),
+  getPendingCourses: () => api.get('/courses/pending'),
+  approveCourse: (id) => api.post(`/courses/${id}/approve`),
+  rejectCourse: (id, raison) => api.post(`/courses/${id}/reject`, { raison }),
+
 };
 
 // Service dashboard
@@ -114,7 +119,14 @@ export const dashboardService = {
   getInstructorStats: () => api.get('/users/dashboard/instructor'),
 };
 
-// Service admin
+// Service notifications
+export const notificationService = {
+  getMyNotifications: () => api.get('/notifications'),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: () => api.put('/notifications/read-all'),
+};
+
 export const adminService = {
   getUserDetails: (userId) => api.get(`/users/admin/user/${userId}`),
   getAllUsers: () => api.get('/users/admin/all-users'),
@@ -140,5 +152,4 @@ export const paymentService = {
   processCardPayment: (data) => api.post('/payment/card', data),
   enrollFreeCourse: (courseId) => api.post('/payment/free-enroll', { courseId }),
 };
-
 export default api;

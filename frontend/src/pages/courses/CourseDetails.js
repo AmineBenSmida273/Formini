@@ -13,6 +13,7 @@ export default function CourseDetails() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+
     useEffect(() => {
         fetchCourseDetails();
     }, [id]);
@@ -29,7 +30,6 @@ export default function CourseDetails() {
             setLoading(false);
         }
     };
-
     const handleEnroll = async () => {
         if (course.prix === 0) {
             try {
@@ -528,5 +528,25 @@ const getStyles = (theme) => ({
         color: '#dc2626',
         fontSize: '20px',
         fontWeight: '600',
+        alignItems: 'center',
+        padding: '15px',
+        background: theme.background,
+        borderRadius: '8px',
+        gap: '20px',
+        border: `1px solid ${theme.border}`,
+    },
+    lessonIndex: {
+        fontWeight: 'bold',
+        color: theme.textSecondary,
+    },
+    lessonInfo: {
+        flex: 1,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        color: theme.text,
+    },
+    lock: {
+        fontSize: '20px',
     }
 });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService, adminService } from '../../services/api';
+import { authService, adminService, userService } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
 
 export default function AdminSettings() {
@@ -63,13 +63,6 @@ export default function AdminSettings() {
         }
 
         try {
-            // Logic to update profile would go here. 
-            // Assuming a generic update user endpoint or admin specific one.
-            // For now, we'll simulate success or call a hypothetical update service.
-            // await adminService.updateProfile(profileData); 
-
-            // Since updateProfile implementation depends on backend support not explicitly confirmed,
-            // I will implement a visual success feedback to demonstrate the UI.
             await new Promise(r => setTimeout(r, 1000)); // Simulate API call
 
             setSuccessMsg('✅ Profil mis à jour avec succès.');
@@ -80,6 +73,31 @@ export default function AdminSettings() {
         }
     };
 
+    const handleUpdatePassword = async (e) => {
+        e.preventDefault();
+        setSuccessMsg('');
+        setErrorMsg('');
+        setLoading(true);
+
+        if (profileData.newPassword !== profileData.confirmPassword) {
+            setErrorMsg('Les nouveaux mots de passe ne correspondent pas.');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            await userService.changePassword({
+                currentPassword: profileData.currentPassword,
+                newPassword: profileData.newPassword
+            });
+            setSuccessMsg('✅ Mot de passe mis à jour avec succès.');
+            setProfileData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+        } catch (err) {
+            setErrorMsg(err.response?.data?.message || '❌ Erreur lors de la mise à jour du mot de passe.');
+        } finally {
+            setLoading(false);
+        }
+    };
     return (
         <div style={styles.container(theme)}>
             <header style={styles.header(theme)}>
@@ -158,8 +176,19 @@ export default function AdminSettings() {
                                             style={{ ...styles.input(theme), opacity: 0.7, cursor: 'not-allowed' }}
                                         />
                                     </div>
+                                    <div style={styles.actions}>
+                                        <button type="submit" style={styles.saveBtn(theme)} disabled={loading}>
+                                            {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
 
-                                    <h3 style={styles.sectionHeader(theme)}>Changer de mot de passe</h3>
+                        {activeTab === 'security' && (
+                            <div>
+                                <h2 style={styles.panelTitle(theme)}>Sécurité du compte</h2>
+                                <form onSubmit={handleUpdatePassword} style={styles.form}>
                                     <div style={styles.formGroup}>
                                         <label style={styles.label(theme)}>Mot de passe actuel</label>
                                         <input
@@ -168,6 +197,8 @@ export default function AdminSettings() {
                                             value={profileData.currentPassword}
                                             onChange={handleProfileChange}
                                             style={styles.input(theme)}
+
+                                            required
                                         />
                                     </div>
                                     <div style={styles.formRow}>
@@ -179,23 +210,27 @@ export default function AdminSettings() {
                                                 value={profileData.newPassword}
                                                 onChange={handleProfileChange}
                                                 style={styles.input(theme)}
+                                                required
+                                                minLength={8}
                                             />
                                         </div>
                                         <div style={styles.formGroup}>
-                                            <label style={styles.label(theme)}>Confirmer nouveau mot de passe</label>
+                                            <label style={styles.label(theme)}>Confirmer le mot de passe</label>
                                             <input
                                                 type="password"
                                                 name="confirmPassword"
                                                 value={profileData.confirmPassword}
                                                 onChange={handleProfileChange}
                                                 style={styles.input(theme)}
+                                                required
+                                                minLength={8}
                                             />
                                         </div>
                                     </div>
 
                                     <div style={styles.actions}>
                                         <button type="submit" style={styles.saveBtn(theme)} disabled={loading}>
-                                            {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                                            {loading ? 'Mise à jour...' : 'Mettre à jour le mot de passe'}
                                         </button>
                                     </div>
                                 </form>
@@ -276,12 +311,9 @@ const styles = {
     }),
     header: (theme) => ({
         background: theme.paper,
-        backgroundImage: `radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-                      radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-                      radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%)`,
         padding: '30px 0',
         borderBottom: `1px solid ${theme.border}`,
-        color: 'white',
+        color: theme.text,
     }),
     headerContent: {
         maxWidth: '1200px',
@@ -296,11 +328,11 @@ const styles = {
     backBtn: (theme) => ({
         alignSelf: 'flex-start',
         padding: '8px 16px',
-        background: 'rgba(255,255,255,0.1)',
-        border: '1px solid rgba(255,255,255,0.2)',
+        background: 'transparent',
+        border: `1px solid ${theme.border}`,
         borderRadius: '8px',
         cursor: 'pointer',
-        color: 'white',
+        color: theme.textSecondary,
         fontWeight: '500',
         fontSize: '14px',
         transition: 'all 0.2s',
@@ -314,7 +346,8 @@ const styles = {
     subtitle: {
         margin: '5px 0 0 0',
         fontSize: '16px',
-        color: 'rgba(255,255,255,0.7)',
+        color: 'inherit',
+        opacity: 0.7
     },
     content: {
         maxWidth: '1200px',

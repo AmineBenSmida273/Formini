@@ -99,6 +99,7 @@ export default function StudentDashboard({ user }) {
       ...activityTimeline.map(d => Math.max(d.enrollments || 0, d.completions || 0)),
       1
     );
+
   };
 
   if (loading && myCourses.length === 0) {
@@ -409,6 +410,7 @@ export default function StudentDashboard({ user }) {
                   }}
                 >
                   {course.status === 'Terminé' ? '✓ Terminé' : (course.progress === 0 ? 'Commencer' : 'Continuer')}
+
                 </button>
               </div>
             )) : (
@@ -480,6 +482,7 @@ export default function StudentDashboard({ user }) {
         <section style={styles.actionsSection}>
           <h2 style={styles.sectionTitle}>⚡ Actions Rapides</h2>
           <div style={styles.actionsGrid}>
+<<<<<<< HEAD
             <button style={styles.actionBtn} onClick={() => navigate('/courses')}>
               🔍 Explorer les Cours
             </button>

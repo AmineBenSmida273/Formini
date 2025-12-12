@@ -4,7 +4,12 @@ const Lesson = require('../models/lesson.model');
 const Quiz = require('../models/quiz.model');
 const QuizResult = require('../models/quizResult.model');
 const Review = require('../models/review.model');
+
 const InscriptionStudent = require('../models/enrollment.model');
+/*
+amine
+const Enrollment = require('../models/enrollment.model');
+*/
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { ADMIN_EMAIL, isAdminEmail } = require('../utils/adminConfig');
@@ -167,6 +172,7 @@ exports.login = async (req, res) => {
       error: error.message
     });
   }
+
 };
 
 // ==================== PROFILE MANAGEMENT ====================
@@ -237,6 +243,7 @@ exports.changePassword = async (req, res) => {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
+<<<<<<< HEAD
     // Vérifier l'ancien mot de passe
     const isMatch = await bcrypt.compare(oldPassword, user.mdp);
     if (!isMatch) {
@@ -336,6 +343,27 @@ exports.getMyCertificates = async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la récupération des certificats' });
   }
 };
+=======
+    const isMatch = await bcrypt.compare(currentPassword, user.mdp);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Mot de passe actuel incorrect' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'Le nouveau mot de passe doit contenir au moins 8 caractères' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    user.mdp = hashedPassword;
+    await user.save();
+
+    res.json({ message: 'Mot de passe mis à jour avec succès' });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors du changement de mot de passe', error: error.message });
+  }
+};
+
+>>>>>>> f8d8203d1a5338bb7d3be95f843e13e2bf3ea00f
 
 // =============== DASHBOARD STATISTICS ========================
 
@@ -354,6 +382,8 @@ exports.getAdminStats = async (req, res) => {
     const totalLessons = await Lesson.countDocuments();
     const totalQuizzes = await Quiz.countDocuments();
     const totalEnrollments = await InscriptionStudent.countDocuments();
+    //amine const totalEnrollments = await Enrollment.countDocuments();
+>>>>>>> f8d8203d1a5338bb7d3be95f843e13e2bf3ea00f
     const totalReviews = await Review.countDocuments();
 
     // Calculer la note moyenne globale
@@ -429,6 +459,7 @@ exports.getAdminStats = async (req, res) => {
     ]);
 
     const enrollmentTrendAggregation = await InscriptionStudent.aggregate([
+    //amine const enrollmentTrendAggregation = await Enrollment.aggregate([
       { $match: { dateInscription: { $gte: startDate } } },
       {
         $group: {
@@ -575,6 +606,7 @@ exports.getStudentStats = async (req, res) => {
       return sum + (enrollment.progression || 0) * 0.1; // Approximation basée sur la progression
     }, 0);
 
+<<<<<<< HEAD
     // Score moyen = taux de complétion (cours terminés / cours inscrits * 100)
     const averageScore = coursesEnrolled > 0
       ? Math.round((coursesCompleted / coursesEnrolled) * 100)
@@ -638,6 +670,7 @@ exports.getStudentStats = async (req, res) => {
       .limit(3)
       .lean();
 
+<<<<<<< HEAD
     const recommendedWithStats = recommendedCourses.map(course => ({
       id: course._id,
       title: course.titre,
@@ -651,6 +684,40 @@ exports.getStudentStats = async (req, res) => {
 
     // Échéances à venir (à implémenter plus tard avec les quiz)
     const upcomingDeadlines = [];
+=======
+    const recommendedWithStats = await Promise.all(recommendedCourses.map(async (course) => {
+      const enrollmentsCount = await Enrollment.countDocuments({ course: course._id });
+      const reviews = await Review.find({ course: course._id }).lean();
+      const avgRating = reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+        : 0;
+
+      return {
+        id: course._id,
+        title: course.titre,
+        instructor: course.formateur ? `${course.formateur.prenom} ${course.formateur.nom}` : 'Inconnu',
+        rating: Math.round(avgRating * 10) / 10,
+        students: enrollmentsCount
+      };
+    }));
+
+    // Échéances à venir (basées sur les quiz à venir)
+    const upcomingDeadlines = [];
+    for (const enrollment of enrollments.filter(e => e.statut === 'active' && e.course)) {
+      const courseQuizzes = await Quiz.find({ course: enrollment.course._id })
+        .sort({ createdAt: 1 })
+        .lean();
+
+      if (courseQuizzes.length > 0) {
+        const nextQuiz = courseQuizzes[0];
+        upcomingDeadlines.push({
+          course: enrollment.course.titre,
+          deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 jours par défaut
+          type: 'Quiz'
+        });
+      }
+    }
+>>>>>>> f8d8203d1a5338bb7d3be95f843e13e2bf3ea00f
 
     // Timeline d'activité réelle (14 derniers jours)
     const activityStart = new Date();
@@ -658,12 +725,17 @@ exports.getStudentStats = async (req, res) => {
 
     const toKey = (date) => {
       const d = new Date(date);
+<<<<<<< HEAD
       // Utiliser toLocaleDateString pour garantir l'alignement avec les dates locales
       // Format YYYY-MM-DD
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
+=======
+      d.setHours(0, 0, 0, 0);
+      return d.toISOString().slice(0, 10);
+>>>>>>> f8d8203d1a5338bb7d3be95f843e13e2bf3ea00f
     };
 
     const toDisplay = (date) => date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
@@ -671,10 +743,14 @@ exports.getStudentStats = async (req, res) => {
     const makeRange = (days) => {
       const items = [];
       const cursor = new Date();
+<<<<<<< HEAD
       // Reset hours to avoid drift
       cursor.setHours(12, 0, 0, 0);
       cursor.setDate(cursor.getDate() - (days - 1));
 
+=======
+      cursor.setDate(cursor.getDate() - (days - 1));
+>>>>>>> f8d8203d1a5338bb7d3be95f843e13e2bf3ea00f
       for (let i = 0; i < days; i++) {
         const d = new Date(cursor);
         items.push(d);
@@ -683,6 +759,7 @@ exports.getStudentStats = async (req, res) => {
       return items;
     };
 
+<<<<<<< HEAD
 
     const activityPerDay = {};
     const enrollmentsPerDay = {};
@@ -700,14 +777,32 @@ exports.getStudentStats = async (req, res) => {
           completionsPerDay[completionKey] = (completionsPerDay[completionKey] || 0) + 1;
         }
       }
+=======
+    const activityPerDay = {};
+
+    enrollments.forEach((enrollment) => {
+      if (enrollment.dateInscription < activityStart) return;
+      const key = toKey(enrollment.dateInscription);
+      activityPerDay[key] = (activityPerDay[key] || 0) + 1;
+    });
+
+    quizResults.forEach((quiz) => {
+      if (!quiz.date || quiz.date < activityStart) return;
+      const key = toKey(quiz.date);
+      activityPerDay[key] = (activityPerDay[key] || 0) + 1;
+>>>>>>> f8d8203d1a5338bb7d3be95f843e13e2bf3ea00f
     });
 
     const activityTimeline = makeRange(14).map((date) => {
       const key = toKey(date);
       return {
         date: toDisplay(date),
+<<<<<<< HEAD
         enrollments: enrollmentsPerDay[key] || 0,
         completions: completionsPerDay[key] || 0
+=======
+        actions: activityPerDay[key] || 0
+>>>>>>> f8d8203d1a5338bb7d3be95f843e13e2bf3ea00f
       };
     });
 
@@ -756,7 +851,11 @@ exports.getInstructorStats = async (req, res) => {
 
     // Récupérer toutes les inscriptions pour les cours du formateur
     const courseIds = allCourses.map(c => c._id);
+<<<<<<< HEAD
     const enrollments = await InscriptionStudent.find({ course: { $in: courseIds } })
+=======
+    const enrollments = await Enrollment.find({ course: { $in: courseIds } })
+>>>>>>> f8d8203d1a5338bb7d3be95f843e13e2bf3ea00f
       .populate('student', 'nom prenom email')
       .populate('course', 'titre')
       .lean();
