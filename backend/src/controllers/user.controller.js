@@ -15,44 +15,44 @@ exports.register = async (req, res) => {
 
     // Vérifications manuelles supplémentaires
     if (!nom || !prenom || !email || !mdp) {
-      return res.status(400).json({ 
-        message: 'Tous les champs obligatoires doivent être remplis' 
+      return res.status(400).json({
+        message: 'Tous les champs obligatoires doivent être remplis'
       });
     }
 
     if (mdp.length < 8) {
-      return res.status(400).json({ 
-        message: 'Le mot de passe doit contenir au moins 8 caractères' 
+      return res.status(400).json({
+        message: 'Le mot de passe doit contenir au moins 8 caractères'
       });
     }
 
     // Validation email basique
     const emailRegex = /^.+@.+\..+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ 
-        message: 'Format d\'email invalide' 
+      return res.status(400).json({
+        message: 'Format d\'email invalide'
       });
     }
 
     // Vérifier si l'utilisateur existe déjà
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ 
-        message: 'Un utilisateur avec cet email existe déjà' 
+      return res.status(400).json({
+        message: 'Un utilisateur avec cet email existe déjà'
       });
     }
 
     // Empêcher la création de comptes admin via cette route
     if (role === 'admin') {
-      return res.status(403).json({ 
-        message: `La création de comptes administrateur n'est pas autorisée. Un seul compte admin existe: ${ADMIN_EMAIL}` 
+      return res.status(403).json({
+        message: `La création de comptes administrateur n'est pas autorisée. Un seul compte admin existe: ${ADMIN_EMAIL}`
       });
     }
 
     // Empêcher la création d'un compte avec l'email admin
     if (isAdminEmail(email)) {
-      return res.status(403).json({ 
-        message: `Cet email est réservé au compte administrateur unique` 
+      return res.status(403).json({
+        message: `Cet email est réservé au compte administrateur unique`
       });
     }
 
@@ -75,7 +75,7 @@ exports.register = async (req, res) => {
 
     // Créer un token JWT
     const token = jwt.sign(
-      { userId: user._id, role: user.role }, 
+      { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -96,26 +96,26 @@ exports.register = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur register détaillée:', error);
-    
+
     // Gestion spécifique des erreurs de validation MongoDB
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Erreur de validation',
-        errors: errors 
-      });
-    }
-    
-    if (error.code === 121) { // Code d'erreur de validation MongoDB
-      return res.status(400).json({ 
-        message: 'Les données ne respectent pas le schéma de validation',
-        error: error.errInfo?.details 
+        errors: errors
       });
     }
 
-    res.status(500).json({ 
+    if (error.code === 121) { // Code d'erreur de validation MongoDB
+      return res.status(400).json({
+        message: 'Les données ne respectent pas le schéma de validation',
+        error: error.errInfo?.details
+      });
+    }
+
+    res.status(500).json({
       message: 'Erreur lors de la création de l\'utilisateur',
-      error: error.message 
+      error: error.message
     });
   }
 };
@@ -143,7 +143,7 @@ exports.login = async (req, res) => {
 
     // Créer un token JWT
     const token = jwt.sign(
-      { userId: user._id, role: user.role }, 
+      { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -162,12 +162,43 @@ exports.login = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Erreur lors de la connexion',
-      error: error.message 
+      error: error.message
     });
   }
+
 };
+
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.mdp);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Mot de passe actuel incorrect' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'Le nouveau mot de passe doit contenir au moins 8 caractères' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    user.mdp = hashedPassword;
+    await user.save();
+
+    res.json({ message: 'Mot de passe mis à jour avec succès' });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors du changement de mot de passe', error: error.message });
+  }
+};
+
 
 // =============== DASHBOARD STATISTICS ========================
 
@@ -180,14 +211,14 @@ exports.getAdminStats = async (req, res) => {
     const totalAdmins = await User.countDocuments({ role: 'admin' });
     const activeUsers = await User.countDocuments({ statut: 'active' });
     const suspendedUsers = await User.countDocuments({ statut: 'suspendue' });
-    
+
     // Statistiques sur les cours
     const totalCourses = await Course.countDocuments();
     const totalLessons = await Lesson.countDocuments();
     const totalQuizzes = await Quiz.countDocuments();
     const totalEnrollments = await Enrollment.countDocuments();
     const totalReviews = await Review.countDocuments();
-    
+
     // Calculer la note moyenne globale
     const avgRatingResult = await Review.aggregate([
       { $group: { _id: null, avgRating: { $avg: '$rating' } } }
@@ -374,9 +405,9 @@ exports.getAdminStats = async (req, res) => {
       enrollmentTrends
     });
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Erreur lors de la récupération des statistiques',
-      error: error.message 
+      error: error.message
     });
   }
 };
@@ -410,28 +441,28 @@ exports.getStudentStats = async (req, res) => {
     // Certificats = cours complétés avec score >= 70%
     const certificates = enrollments.filter(e => {
       if (e.statut !== 'completed') return false;
-      const courseQuizResults = quizResults.filter(qr => 
+      const courseQuizResults = quizResults.filter(qr =>
         qr.quiz && qr.quiz.toString() === e.course._id.toString()
       );
-      return courseQuizResults.length > 0 && 
-             courseQuizResults[courseQuizResults.length - 1].score >= 70;
+      return courseQuizResults.length > 0 &&
+        courseQuizResults[courseQuizResults.length - 1].score >= 70;
     }).length;
 
     // Mes cours avec détails
     const myCourses = await Promise.all(enrollments.map(async (enrollment) => {
       const course = enrollment.course;
       if (!course) return null;
-      
+
       // Récupérer les leçons du cours
       const lessons = await Lesson.find({ course: course._id }).lean();
       const totalLessons = lessons.length;
       const completedLessons = Math.floor((enrollment.progression / 100) * totalLessons);
-      
+
       // Récupérer les quiz du cours
       const courseQuizzes = await Quiz.find({ course: course._id }).lean();
-      
+
       // Récupérer la prochaine leçon
-      const nextLesson = enrollment.derniereLecon 
+      const nextLesson = enrollment.derniereLecon
         ? await Lesson.findById(enrollment.derniereLecon).lean()
         : lessons.length > 0 ? lessons[0] : null;
 
@@ -445,8 +476,8 @@ exports.getStudentStats = async (req, res) => {
         image: course.image,
         progress: enrollment.progression || 0,
         instructor: course.formateur ? `${course.formateur.prenom} ${course.formateur.nom}` : 'Inconnu',
-        status: enrollment.statut === 'completed' ? 'Terminé' : 
-                enrollment.statut === 'active' ? 'En cours' : 'Non commencé',
+        status: enrollment.statut === 'completed' ? 'Terminé' :
+          enrollment.statut === 'active' ? 'En cours' : 'Non commencé',
         hours: courseHours,
         nextLesson: nextLesson ? nextLesson.titre : null,
         totalLessons,
@@ -509,7 +540,7 @@ exports.getStudentStats = async (req, res) => {
       .select('categorie')
       .lean();
     const categories = [...new Set(enrolledCourses.map(c => c.categorie).filter(Boolean))];
-    
+
     const recommendedCourses = await Course.find({
       _id: { $nin: enrolledCourseIds },
       categorie: { $in: categories }
@@ -540,7 +571,7 @@ exports.getStudentStats = async (req, res) => {
       const courseQuizzes = await Quiz.find({ course: enrollment.course._id })
         .sort({ createdAt: 1 })
         .lean();
-      
+
       if (courseQuizzes.length > 0) {
         const nextQuiz = courseQuizzes[0];
         upcomingDeadlines.push({
@@ -621,9 +652,9 @@ exports.getStudentStats = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur getStudentStats:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Erreur lors de la récupération des statistiques',
-      error: error.message 
+      error: error.message
     });
   }
 };
@@ -666,12 +697,12 @@ exports.getInstructorStats = async (req, res) => {
 
     // Mes cours avec statistiques détaillées
     const myCourses = await Promise.all(allCourses.map(async (course) => {
-      const courseEnrollments = enrollments.filter(e => 
+      const courseEnrollments = enrollments.filter(e =>
         e.course._id.toString() === course._id.toString()
       );
       const courseStudents = new Set(courseEnrollments.map(e => e.student._id.toString())).size;
-      
-      const courseReviews = allReviews.filter(r => 
+
+      const courseReviews = allReviews.filter(r =>
         r.course.toString() === course._id.toString()
       );
       const courseRating = courseReviews.length > 0
@@ -679,7 +710,7 @@ exports.getInstructorStats = async (req, res) => {
         : 0;
 
       const courseRevenue = courseEnrollments.length * (course.prix || 0);
-      
+
       // Calculer le taux de complétion
       const completedEnrollments = courseEnrollments.filter(e => e.statut === 'completed').length;
       const completionRate = courseEnrollments.length > 0
@@ -768,7 +799,7 @@ exports.getInstructorStats = async (req, res) => {
       title: course.title,
       students: course.students,
       completionRate: course.completionRate
-      }));
+    }));
 
     res.json({
       stats: {
@@ -787,9 +818,9 @@ exports.getInstructorStats = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur getInstructorStats:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Erreur lors de la récupération des statistiques',
-      error: error.message 
+      error: error.message
     });
   }
 };

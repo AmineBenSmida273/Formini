@@ -103,7 +103,7 @@ export default function CourseCatalog() {
                                 <h3 style={styles.cardTitle}>{course.titre}</h3>
                                 <p style={styles.cardDesc}>{course.description.substring(0, 100)}...</p>
                                 <div style={styles.cardFooter}>
-                                    <span style={styles.price}>{course.prix === 0 ? 'Gratuit' : `${course.prix} €`}</span>
+                                    <span style={styles.price}>{course.prix === 0 ? 'Gratuit' : `${course.prix} TND`}</span>
                                     <button
                                         style={styles.detailsBtn}
                                         onClick={() => navigate(`/courses/${course._id}`)}

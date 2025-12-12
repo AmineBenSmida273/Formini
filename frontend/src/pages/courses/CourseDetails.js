@@ -47,7 +47,7 @@ export default function CourseDetails() {
                         <span>⭐ 4.8/5 (24 avis)</span>
                     </div>
                     <button onClick={handleEnroll} style={styles.enrollBtn}>
-                        S'inscrire ({course.prix === 0 ? 'Gratuit' : `${course.prix} €`})
+                        S'inscrire ({course.prix === 0 ? 'Gratuit' : `${course.prix} TND`})
                     </button>
                 </div>
             </div>

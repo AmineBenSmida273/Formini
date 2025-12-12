@@ -8,9 +8,13 @@ import GoogleSuccess from './pages/GoogleSuccess';
 import Dashboard from './pages/Dashboard';
 import AdminCourses from './pages/dashboards/AdminCourses';
 import AdminSettings from './pages/dashboards/AdminSettings';
-import AdminReports from './pages/dashboards/AdminReports'; // Import
+import AdminReports from './pages/dashboards/AdminReports';
+import InstructorCourses from './pages/dashboards/InstructorCourses';
+import InstructorAnalytics from './pages/dashboards/InstructorAnalytics';
 import CourseCatalog from './pages/courses/CourseCatalog';
 import CourseDetails from './pages/courses/CourseDetails';
+import CreateCourse from './pages/CreateCourse';
+import InstructorSettings from './pages/InstructorSettings';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -57,6 +61,22 @@ function App() {
             }
           />
           <Route
+            path="/instructor/courses"
+            element={
+              <ProtectedRoute>
+                <InstructorCourses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instructor/analytics"
+            element={
+              <ProtectedRoute>
+                <InstructorAnalytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/admin/reports"
             element={
               <ProtectedRoute>
@@ -77,6 +97,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <div>Cours à créer</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/create-course"
+            element={
+              <ProtectedRoute>
+                <CreateCourse />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instructor-settings"
+            element={
+              <ProtectedRoute>
+                <InstructorSettings />
               </ProtectedRoute>
             }
           />

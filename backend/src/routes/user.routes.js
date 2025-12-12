@@ -13,6 +13,9 @@ router.post('/register', userController.register);
 // Route de connexion
 router.post('/login', userController.login);
 
+// Route changement mot de passe
+router.put('/change-password', verifyToken, userController.changePassword);
+
 // Routes pour les dashboards (nécessitent une authentification)
 router.get('/dashboard/admin', verifyToken, verifyRole('admin'), userController.getAdminStats);
 router.get('/dashboard/student', verifyToken, verifyRole('student'), userController.getStudentStats);

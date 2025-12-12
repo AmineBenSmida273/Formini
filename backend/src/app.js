@@ -25,6 +25,7 @@ app.use('/api/users', require('./routes/user.routes'));
 // Routes d'authentification MFA
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/courses', require('./routes/course.routes'));
+app.use('/api/notifications', require('./routes/notification.routes'));
 
 // Routes pour les pages (ajoutez cette section)
 app.use('/auth', require('./routes/auth.routes'));

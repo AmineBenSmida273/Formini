@@ -101,6 +101,9 @@ export const courseService = {
   updateCourse: (id, courseData) => api.put(`/courses/${id}`, courseData),
   deleteCourse: (id) => api.delete(`/courses/${id}`),
   getMyCourses: () => api.get('/courses/instructor/my-courses'),
+  getPendingCourses: () => api.get('/courses/pending'),
+  approveCourse: (id) => api.post(`/courses/${id}/approve`),
+  rejectCourse: (id, raison) => api.post(`/courses/${id}/reject`, { raison }),
 };
 
 // Service dashboard
@@ -111,6 +114,14 @@ export const dashboardService = {
 };
 
 // Service admin
+// Service notifications
+export const notificationService = {
+  getMyNotifications: () => api.get('/notifications'),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: () => api.put('/notifications/read-all'),
+};
+
 export const adminService = {
   getUserDetails: (userId) => api.get(`/users/admin/user/${userId}`),
   getAllUsers: () => api.get('/users/admin/all-users'),
