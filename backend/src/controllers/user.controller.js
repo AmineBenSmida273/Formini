@@ -426,10 +426,10 @@ exports.getAdminStats = async (req, res) => {
     ]);
 
     const courseTrendAggregation = await Course.aggregate([
-      { $match: { dateCreation: { $gte: startDate } } },
+      { $match: { createdAt: { $gte: startDate } } },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$dateCreation' } },
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
           count: { $sum: 1 }
         }
       },
@@ -437,10 +437,10 @@ exports.getAdminStats = async (req, res) => {
     ]);
 
     const enrollmentTrendAggregation = await Enrollment.aggregate([
-      { $match: { dateInscription: { $gte: startDate } } },
+      { $match: { createdAt: { $gte: startDate } } },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$dateInscription' } },
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
           count: { $sum: 1 }
         }
       },
@@ -787,14 +787,15 @@ exports.getInstructorStats = async (req, res) => {
     const courseById = new Map(allCourses.map((c) => [c._id.toString(), c]));
 
     // Récupérer toutes les inscriptions pour les cours du formateur
+    // Récupérer toutes les inscriptions pour les cours du formateur
     const courseIds = allCourses.map(c => c._id);
-    const enrollments = await Enrollment.find({ course: { $in: courseIds } })
-      .populate('student', 'nom prenom email')
-      .populate('course', 'titre')
+    const enrollments = await Enrollment.find({ coursid: { $in: courseIds } })
+      .populate('etudiantid', 'nom prenom email')
+      .populate('coursid', 'titre')
       .lean();
 
     // Calculer le nombre d'étudiants uniques
-    const uniqueStudents = new Set(enrollments.map(e => e.student._id.toString()));
+    const uniqueStudents = new Set(enrollments.map(e => e.etudiantid?._id.toString()).filter(Boolean));
     const totalStudents = uniqueStudents.size;
     const totalEnrollments = enrollments.length;
 

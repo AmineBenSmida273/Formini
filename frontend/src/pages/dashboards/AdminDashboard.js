@@ -379,13 +379,7 @@ export default function AdminDashboard({ user }) {
             </p>
           </div>
           <div style={styles.headerActions}>
-            <button
-              onClick={() => navigate('/admin/settings')}
-              style={styles.settingsBtn}
-              title="Paramètres Système"
-            >
-              ⚙️
-            </button>
+
             <NotificationBell />
             <label style={styles.toggleLabel}>
               <input
@@ -428,6 +422,28 @@ export default function AdminDashboard({ user }) {
                 <p style={styles.statLabel}>Total Utilisateurs</p>
                 <div style={styles.statProgress}>
                   <div className="admin-progress-bar" style={{ ...styles.statProgressBar, width: '100%', background: 'linear-gradient(90deg, #ff9a56 0%, #ff6a00 100%)' }}></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="admin-stat-card" style={{ ...styles.statCard, '--index': 0.5 }}>
+              <div style={styles.statIcon}>📚</div>
+              <div style={styles.statContent}>
+                <h3 style={styles.statValue}>{stats.totalCourses}</h3>
+                <p style={styles.statLabel}>Total Cours</p>
+                <div style={styles.statProgress}>
+                  <div className="admin-progress-bar" style={{ ...styles.statProgressBar, width: '100%', background: '#f97316' }}></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="admin-stat-card" style={{ ...styles.statCard, '--index': 0.6 }}>
+              <div style={styles.statIcon}>📝</div>
+              <div style={styles.statContent}>
+                <h3 style={styles.statValue}>{stats.totalEnrollments}</h3>
+                <p style={styles.statLabel}>Total Inscriptions</p>
+                <div style={styles.statProgress}>
+                  <div className="admin-progress-bar" style={{ ...styles.statProgressBar, width: '100%', background: '#3b82f6' }}></div>
                 </div>
               </div>
             </div>
@@ -555,14 +571,6 @@ export default function AdminDashboard({ user }) {
                                 title: `${trend.instructors} formateurs`
                               }}
                             ></div>
-                            <div
-                              style={{
-                                ...styles.chartBarItem,
-                                height: `${(trend.admins / maxUserTrendValue) * 100}%`,
-                                background: '#ef4444',
-                                title: `${trend.admins} admins`
-                              }}
-                            ></div>
                           </div>
                           <span style={styles.chartLabel}>{trend.date}</span>
                         </div>
@@ -577,16 +585,12 @@ export default function AdminDashboard({ user }) {
                         <div style={{ ...styles.legendColor, background: '#f59e0b' }}></div>
                         <span>Formateurs</span>
                       </div>
-                      <div style={styles.legendItem}>
-                        <div style={{ ...styles.legendColor, background: '#ef4444' }}></div>
-                        <span>Admins</span>
-                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {enrollmentTrends.length > 0 && (
+              {/* {enrollmentTrends.length > 0 && (
                 <div style={styles.chartCard}>
                   <h3 style={styles.chartCardTitle}>Inscriptions aux cours</h3>
                   <div style={styles.chartContainer}>
@@ -607,11 +611,11 @@ export default function AdminDashboard({ user }) {
                     </div>
                   </div>
                 </div>
-              )}
+              )} */}
             </div>
 
             <div style={styles.chartGrid}>
-              {courseTrends.length > 0 && (
+              {/* {courseTrends.length > 0 && (
                 <div style={styles.chartCard}>
                   <h3 style={styles.chartCardTitle}>Nouveaux cours publiés</h3>
                   <div style={styles.chartContainer}>
@@ -632,7 +636,7 @@ export default function AdminDashboard({ user }) {
                     </div>
                   </div>
                 </div>
-              )}
+              )} */}
 
               {roleDistribution.length > 0 && (
                 <div style={styles.chartCard}>

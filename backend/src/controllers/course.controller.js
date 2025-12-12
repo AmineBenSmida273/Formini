@@ -465,3 +465,17 @@ exports.rejectCourse = async (req, res) => {
         });
     }
 };
+
+// Récupérer toutes les catégories distinctes
+exports.getCategories = async (req, res) => {
+    try {
+        const categories = await Course.distinct('categorie');
+        res.json(categories.filter(c => c)); // Filtrer les valeurs null/undefined
+    } catch (error) {
+        console.error('Erreur getCategories:', error);
+        res.status(500).json({
+            message: 'Erreur lors de la récupération des catégories',
+            error: error.message
+        });
+    }
+};

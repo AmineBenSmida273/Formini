@@ -11,6 +11,7 @@ router.get('/instructor/my-courses', verifyToken, verifyRole('instructor'), cour
 
 // Routes publiques
 router.get('/', optionalAuth, courseController.getAllCourses);
+router.get('/categories', courseController.getCategories);
 router.get('/:id', courseController.getCourseById);
 
 // Routes protégées (Formateur / Admin)
