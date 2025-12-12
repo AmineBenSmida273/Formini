@@ -8,8 +8,6 @@ import GoogleSuccess from './pages/GoogleSuccess';
 import Dashboard from './pages/Dashboard';
 import AdminCourses from './pages/dashboards/AdminCourses';
 import AdminSettings from './pages/dashboards/AdminSettings';
-<<<<<<< HEAD
-
 import PaymentPage from './pages/courses/PaymentPage';
 import CourseChaptersPage from './pages/courses/CourseChaptersPage';
 import CourseLessonReader from './pages/courses/CourseLessonReader';
@@ -100,10 +98,7 @@ function App() {
             path="/profile"
             element={
               <ProtectedRoute>
-
                 <UserProfile />
-
-                <div>Profil à créer</div>
               </ProtectedRoute>
             }
           />
@@ -112,7 +107,6 @@ function App() {
             element={
               <ProtectedRoute>
                 <ExploreCourses />
-                <div>Cours à créer</div>
               </ProtectedRoute>
             }
           />
@@ -122,7 +116,10 @@ function App() {
             element={
               <ProtectedRoute>
                 <CourseDetails />
+              </ProtectedRoute>
             }
+          />
+          <Route
             path="/create-course"
             element={
               <ProtectedRoute>
@@ -168,7 +165,10 @@ function App() {
             element={
               <ProtectedRoute>
                 <MyCertificates />
+              </ProtectedRoute>
             }
+          />
+          <Route
             path="/instructor-settings"
             element={
               <ProtectedRoute>

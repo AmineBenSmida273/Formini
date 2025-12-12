@@ -482,7 +482,6 @@ export default function StudentDashboard({ user }) {
         <section style={styles.actionsSection}>
           <h2 style={styles.sectionTitle}>⚡ Actions Rapides</h2>
           <div style={styles.actionsGrid}>
-<<<<<<< HEAD
             <button style={styles.actionBtn} onClick={() => navigate('/courses')}>
               🔍 Explorer les Cours
             </button>
